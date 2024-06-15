@@ -1,0 +1,81 @@
+{
+  "name": "vite-plugin-generoutes",
+  "type": "module",
+  "version": "0.1.3",
+  "packageManager": "pnpm@9.1.1",
+  "description": "_description_",
+  "author": "Ronnie Zhang <zclzone@outlook.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/zclzone/vite-plugin-generoutes",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zclzone/vite-plugin-generoutes.git"
+  },
+  "bugs": "https://github.com/zclzone/vite-plugin-generoutes/issues",
+  "keywords": [],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./dist/index.d.ts"
+      ]
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "tsup --watch",
+    "build": "tsup",
+    "lint": "eslint .",
+    "prepublishOnly": "nr build",
+    "release": "bumpp && npm publish",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepare": "simple-git-hooks"
+  },
+  "peerDependencies": {
+    "vite": "^5.2.11"
+  },
+  "dependencies": {
+    "@antfu/utils": "^0.7.8",
+    "@vue/compiler-sfc": "^3.4.27",
+    "chokidar": "^3.6.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^10.4.1",
+    "prettier": "^3.3.2"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^2.18.1",
+    "@antfu/ni": "^0.21.12",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.12.12",
+    "bumpp": "^9.4.1",
+    "eslint": "^9.3.0",
+    "esno": "^4.7.0",
+    "lint-staged": "^15.2.2",
+    "pnpm": "^9.1.1",
+    "rimraf": "^5.0.7",
+    "simple-git-hooks": "^2.11.1",
+    "tsup": "^8.1.0",
+    "typescript": "^5.4.5",
+    "unbuild": "^2.0.0",
+    "vitest": "^1.6.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "pnpm lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}
