@@ -112,7 +112,7 @@ function VitePluginGeneroutes(options: Options = defaultOptions) {
 
   function createWatcher() {
     // 监听 index.vue 和 [...all].vue 文件变动
-    const watcher = chokidar.watch(['src/pages/**/*.vue', `src/pages/**/[...all].vue`], { ignoreInitial: true })
+    const watcher = chokidar.watch(['src/pages/**/index.vue', `src/pages/**/[...all].vue`], { ignoreInitial: true })
     return watcher.on('all', async (event, path) => {
       if ((path.endsWith('index.vue') || path.endsWith('[...all].vue')) && (event === 'add' || event === 'unlink')) {
         debounceWriter()
