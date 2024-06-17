@@ -2,7 +2,7 @@
 defineOptions({
   name: 'Index',
   meta: {
-    title: '首页2',
+    title: '首页',
   },
 })
 </script>
