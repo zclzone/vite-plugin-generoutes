@@ -164,7 +164,7 @@ function parseDefineOptions(filePath: string, content?: string) {
   // 从 setup script 中提取 defineOptions
   const setupScript = descriptor.scriptSetup?.content
   if (setupScript) {
-    const defineOptionsMatch = setupScript.match(/defineOptions\(([^)]+)\)/)
+    const defineOptionsMatch = setupScript.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
     if (defineOptionsMatch) {
       try {
         return new Function(`return ${defineOptionsMatch[1]}`)()
