@@ -1,7 +1,7 @@
 {
   "name": "vite-plugin-generoutes",
   "type": "module",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packageManager": "pnpm@9.1.1",
   "description": "_description_",
   "author": "Ronnie Zhang <zclzone@outlook.com>",
