@@ -9,4 +9,6 @@ defineOptions({
 
 <template>
   <div>Hello {{ $route.meta?.title }}</div>
+
+  <RouterView />
 </template>

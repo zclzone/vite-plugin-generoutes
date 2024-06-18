@@ -1,3 +1,9 @@
+<script setup>
+defineOptions({
+  parent: 'User',
+})
+</script>
+
 <template>
   <div>
     <p>User id: {{ $route.params.id }} </p>
