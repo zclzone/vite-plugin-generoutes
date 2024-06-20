@@ -32,3 +32,31 @@ export function convertToTree(routes: any[]): any[] {
 
   return result
 }
+
+export function findDuplicateRoutes(routes: any[]) {
+  const nameSet = new Set()
+  const pathSet = new Set()
+  const duplicateNames = []
+  const duplicatePaths = []
+
+  for (const route of routes) {
+    if (nameSet.has(route.name)) {
+      duplicateNames.push(route.name)
+    }
+    else {
+      nameSet.add(route.name)
+    }
+
+    if (pathSet.has(route.path)) {
+      duplicatePaths.push(route.path)
+    }
+    else {
+      pathSet.add(route.path)
+    }
+  }
+
+  return {
+    duplicateNames,
+    duplicatePaths,
+  }
+}

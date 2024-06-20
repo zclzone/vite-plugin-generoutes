@@ -14,7 +14,7 @@ import { parse } from '@vue/compiler-sfc'
 import { debounce, slash } from '@antfu/utils'
 import chokidar from 'chokidar'
 import prettier from 'prettier'
-import { convertToTree, toPascalCase } from './utils'
+import { convertToTree, findDuplicateRoutes, toPascalCase } from './utils'
 
 interface Options {
   /**
@@ -54,7 +54,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   const defineOptionsCache = new Map()
 
   function generateMenusAndRoutes() {
-    const pages = globSync(`${pagesFolder}/**/index.vue`).concat(globSync(`${pagesFolder}/**/\\[...all\\].vue`))
+    const pages = globSync(`${pagesFolder}/**/*.vue`, { ignore: `${pagesFolder}/**/components/**` })
     const routes = pages.map((filePath) => {
       filePath = slash(filePath)
       const defineOptions = parseDefineOptions(filePath) || {}
@@ -64,24 +64,17 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       if (meta.enabled === false)
         return null
 
-      const fileName = path.basename(filePath)
-
       // 处理文件路径，按文件路径结构进行拆分， 如：src/pages/foo/bar/index.vue =>  ['foo', 'bar']
-      const pathSegments = path.dirname(filePath).replace(`${pagesFolder}`, '')
+      const pathSegments = filePath.replace(`${pagesFolder}`, '').replace('.vue', '').replace('index', '')
         .split('/')
         .filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
 
-      let name = defineOptions?.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
+      const name = defineOptions?.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
 
       // component作个标记，方便转化成 () => import('${pagePath}')
       const component = `##/${filePath}##`
 
-      let routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
-
-      if (fileName === '[...all].vue') {
-        name = `${name}_[...all]`
-        routePath = routePath === '/' ? '/:pathMatch(.*)*' : (`${routePath}/:pathMatch(.*)*`)
-      }
+      const routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1 === '...all' ? ':pathMatch(.*)*' : p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
 
       if (!('title' in meta))
         meta.title = name
@@ -98,6 +91,12 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
         parent: defineOptions?.parent,
       }
     }).filter(Boolean)
+
+    const { duplicateNames, duplicatePaths } = findDuplicateRoutes(routes)
+    if (duplicateNames.length)
+      console.warn(`Warning: Duplicate names found in routes: ${duplicateNames.join(', ')}`)
+    if (duplicatePaths.length)
+      console.warn(`Warning: Duplicate paths found in routes: ${duplicatePaths.join(', ')}`)
 
     return {
       routes: nested ? convertToTree(routes) : routes,
@@ -127,10 +126,11 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   const debounceWriter = debounce(500, writerRoutesFile)
 
   function createWatcher() {
-    // 监听 index.vue 和 [...all].vue 文件变动
-    const watcher = chokidar.watch([`${pagesFolder}/**/index.vue`, `${pagesFolder}/**/[...all].vue`], { ignoreInitial: true })
+    const watcher = chokidar.watch(`${pagesFolder}/**/*.vue`, { ignoreInitial: true })
     return watcher.on('all', async (event, path) => {
-      if ((path.endsWith('index.vue') || path.endsWith('[...all].vue')) && (event === 'add' || event === 'unlink')) {
+      if (slash(path).includes('/components/'))
+        return
+      if ((path.endsWith('.vue')) && (event === 'add' || event === 'unlink')) {
         debounceWriter()
         await watcher.close()
         createWatcher()
@@ -146,17 +146,13 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       config.command !== 'build' && createWatcher()
     },
     async handleHotUpdate({ file, read }) {
-      if (file.includes(pagesFolder) && (file.endsWith('index.vue') || file.endsWith('[...all].vue'))) {
+      if (file.includes(pagesFolder) && !file.includes('/components') && (file.endsWith('.vue'))) {
         // 获取上一次文件的defineOptions内容
         const prevDefineOptions = defineOptionsCache.get(slash(path.relative(rootDir, file)))
-        if (!prevDefineOptions) {
+        const defineOptions = JSON.stringify(parseDefineOptions(file, await read()))
+
+        if (prevDefineOptions !== defineOptions) {
           debounceWriter()
-        }
-        else {
-          const defineOptions = JSON.stringify(parseDefineOptions(file, await read()))
-          if (prevDefineOptions !== defineOptions) {
-            debounceWriter()
-          }
         }
       }
     },
@@ -177,7 +173,6 @@ function parseDefineOptions(filePath: string, content?: string) {
       }
       catch (e) {
         throw new Error(`Failed to parse defineOptions in ${filePath}: ${e}`)
-        // console.error(`Failed to parse defineOptions in ${filePath}:`, e)
       }
     }
   }

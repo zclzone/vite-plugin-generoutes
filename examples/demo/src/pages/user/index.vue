@@ -7,4 +7,5 @@ defineOptions({
 
 <template>
   <div>User Page</div>
+  <router-view />
 </template>
