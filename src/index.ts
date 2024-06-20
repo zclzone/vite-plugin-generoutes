@@ -24,6 +24,12 @@ interface Options {
    */
   pagesFolder: string
   /**
+   * 忽略文件夹
+   *
+   * default: `['components']`
+   */
+  ignoreFolders: string[]
+  /**
    * 路由文件路径
    *
    * default: `${pagesFolder}/generoutes.js`
@@ -39,6 +45,7 @@ interface Options {
 
 const defaultOptions: Options = {
   pagesFolder: 'src/pages',
+  ignoreFolders: ['components'],
   nested: false,
 }
 
@@ -50,11 +57,12 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   const pagesFolder = options.pagesFolder || defaultOptions.pagesFolder
   const routesPath = options.routesPath || path.join(pagesFolder, 'generoutes.js')
   const nested = options.nested || defaultOptions.nested
+  const ignoreFolders = options.ignoreFolders || defaultOptions.ignoreFolders
 
   const defineOptionsCache = new Map()
 
   function generateMenusAndRoutes() {
-    const pages = globSync(`${pagesFolder}/**/*.vue`, { ignore: `${pagesFolder}/**/components/**` })
+    const pages = globSync(`${pagesFolder}/**/*.vue`, { ignore: ignoreFolders.map(folder => `${pagesFolder}/**/${folder}/**`) })
     const routes = pages.map((filePath) => {
       filePath = slash(filePath)
       const defineOptions = parseDefineOptions(filePath) || {}
@@ -128,7 +136,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   function createWatcher() {
     const watcher = chokidar.watch(`${pagesFolder}/**/*.vue`, { ignoreInitial: true })
     return watcher.on('all', async (event, path) => {
-      if (slash(path).includes('/components/'))
+      if (ignoreFolders.some(folder => slash(path).includes(`/${folder}/`)))
         return
       if ((path.endsWith('.vue')) && (event === 'add' || event === 'unlink')) {
         debounceWriter()
@@ -146,7 +154,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       config.command !== 'build' && createWatcher()
     },
     async handleHotUpdate({ file, read }) {
-      if (file.includes(pagesFolder) && !file.includes('/components') && (file.endsWith('.vue'))) {
+      if (file.includes(pagesFolder) && !ignoreFolders.some(folder => file.includes(`/${folder}/`)) && (file.endsWith('.vue'))) {
         // 获取上一次文件的defineOptions内容
         const prevDefineOptions = defineOptionsCache.get(slash(path.relative(rootDir, file)))
         const defineOptions = JSON.stringify(parseDefineOptions(file, await read()))
