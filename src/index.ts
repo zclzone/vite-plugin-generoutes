@@ -84,13 +84,6 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
 
       const routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1 === '...all' ? ':pathMatch(.*)*' : p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
 
-      if (!('title' in meta))
-        meta.title = name
-      if (!('show' in meta))
-        meta.show = true
-      // defineOptions 设置了 name 且 keepAlive 不为 false 时，则开启 keepAlive
-      meta.keepAlive = !!defineOptions?.name && meta.keepAlive !== false
-
       return {
         name,
         path: routePath,
