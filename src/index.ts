@@ -67,7 +67,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       filePath = slash(filePath)
       const defineOptions = parseDefineOptions(filePath) || {}
       defineOptionsCache.set(filePath, JSON.stringify(defineOptions))
-      const meta = defineOptions?.meta || {}
+      const meta = defineOptions.meta || {}
 
       if (meta.enabled === false)
         return null
@@ -77,7 +77,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
         .split('/')
         .filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
 
-      const name = defineOptions?.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
+      const name = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
 
       // component作个标记，方便转化成 () => import('${pagePath}')
       const component = `##/${filePath}##`
@@ -87,9 +87,10 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       return {
         name,
         path: routePath,
+        redirect: defineOptions.redirect,
         component,
         meta,
-        parent: defineOptions?.parent,
+        parent: defineOptions.parent,
       }
     }).filter(Boolean)
 

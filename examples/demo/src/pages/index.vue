@@ -1,14 +1,5 @@
 <script setup>
 defineOptions({
-  name: 'Index',
-  meta: {
-    title: '首页',
-  },
+  redirect: '/home',
 })
 </script>
-
-<template>
-  <div>Hello {{ $route.meta?.title }}</div>
-
-  <RouterView />
-</template>
