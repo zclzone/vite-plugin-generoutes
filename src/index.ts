@@ -1,7 +1,7 @@
 /**********************************
  * @Author: Ronnie Zhang
  * @LastEditor: Ronnie Zhang
- * @LastEditTime: 2023/12/04 22:48:11
+ * @LastEditTime: 2024/07/01 14:51:47
  * @Email: zclzone@outlook.com
  * Copyright © 2023 Ronnie Zhang(大脸怪) | https://isme.top
  **********************************/
@@ -9,6 +9,7 @@
 import path from 'node:path'
 import fs from 'fs-extra'
 import type { Plugin, ResolvedConfig } from 'vite'
+import type { FSWatcher } from 'chokidar'
 import { globSync } from 'glob'
 import { parse } from '@vue/compiler-sfc'
 import { debounce, slash } from '@antfu/utils'
@@ -127,15 +128,18 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
 
   const debounceWriter = debounce(500, writerRoutesFile)
 
+  let watcher: FSWatcher
   function createWatcher() {
-    const watcher = chokidar.watch(`${pagesFolder}/**/*.vue`, { ignoreInitial: true })
+    watcher = chokidar.watch(`${pagesFolder}/**/*.vue`, { ignoreInitial: true })
     return watcher.on('all', async (event, path) => {
       if (ignoreFolders.some(folder => slash(path).includes(`/${folder}/`)))
         return
       if ((path.endsWith('.vue')) && (event === 'add' || event === 'unlink')) {
         debounceWriter()
-        await watcher.close()
-        createWatcher()
+        if (watcher) {
+          await watcher.close()
+          createWatcher()
+        }
       }
     })
   }
@@ -157,6 +161,9 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
           debounceWriter()
         }
       }
+    },
+    closeBundle() {
+      watcher && watcher.close()
     },
   } as Plugin
 }
