@@ -1,6 +1,6 @@
 # vite-plugin-generoutes
 
-A Vite plugin that generates routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.
+A Vite plugin that generate routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.
 
 ## Usage
 
@@ -39,68 +39,44 @@ src/routes/pages
     └── [...all].vue
 ```
 
-The above example will generate the routes file `src/router/generoutes/index.js` with the following content:
+The above example will generate the routes file `src/pages/generoutes.js` with the following content:
 ```js
 export const routes = [
   {
     name: 'Index',
     path: '/',
     component: () => import('/src/pages/index.vue'),
-    meta: {
-      title: 'Index',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
   {
     name: 'User',
     path: '/user',
     component: () => import('/src/pages/user/index.vue'),
-    meta: {
-      title: 'User',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
   {
     name: 'User_[id]',
     path: '/user/:id',
     component: () => import('/src/pages/user/[id]/index.vue'),
-    meta: {
-      title: 'User_[id]',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
   {
     name: 'User_Post',
     path: '/user/post',
     component: () => import('/src/pages/user/post/index.vue'),
-    meta: {
-      title: 'User_Post',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
   {
     name: 'Index_[...all]',
     path: '/:pathMatch(.*)*',
     component: () => import('/src/pages/[...all].vue'),
-    meta: {
-      title: '404 Not Found',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
   {
     name: 'User_Post_[...all]',
     path: '/user/post/:pathMatch(.*)*',
     component: () => import('/src/pages/user/post/[...all].vue'),
-    meta: {
-      title: 'User_Post_[...all]',
-      show: true,
-      keepAlive: false,
-    },
+    meta: {},
   },
 ]
 ```
@@ -109,7 +85,7 @@ export const routes = [
 
 ```js
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { routes } from './generoutes'
+import { routes } from './pages/generoutes'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -127,9 +103,10 @@ export default router
 - Support custom meta data for each route.
 - Support ghost paths, For example, the (admin) folder will not be part of the route path, which is very useful for folder grouping.
 - Support immediate update of the routes file when the file structure or defineOptions changes.
+- Support nested route.
 
 ## Custom route info，including name and meta
 
 You can define `name` and `meta` fields in the `defineOptions` of your `.vue` file, which will be used to override the default properties of the generated route. The `name` field will be used as the route name, which is very useful for `KeepAlive`. Any property in `defineOptions.meta` will be used as a property of the route `meta`, which makes the route metadata very flexible.
 
-When you make any changes that may affect the route result, the `src/router/generoutes/index.js` file will be updated immediately, and the page will be refreshed without restarting the server.
+When you make any changes that may affect the route result, the `src/pages/generoutes.js` file will be updated immediately, and the page will be refreshed without restarting the server.
