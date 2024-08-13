@@ -81,7 +81,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       const name = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
 
       // component作个标记，方便转化成 () => import('${pagePath}')
-      const component = `##/${filePath}##`
+      const component = `##/${filePath}@@${name}##`
 
       const routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1 === '...all' ? ':pathMatch(.*)*' : p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
 
@@ -117,7 +117,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     `
 
     // 转化component为 () => import('${pagePath}')
-    routesStr = routesStr.replace(/"##(.*)##"/g, (_, p1) => `() => import('${p1}')`)
+    routesStr = routesStr.replace(/"##(.*)##"/g, (_, p1) => `async () => ({...(await import('${p1.split('@@')[0]}')).default, name: '${p1.split('@@')[1]}'})`)
     // 格式化
     routesStr = await prettier.format(routesStr, { parser: 'babel', semi: false, singleQuote: true })
 
