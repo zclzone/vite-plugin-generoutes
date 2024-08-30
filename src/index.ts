@@ -149,7 +149,8 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     async configResolved(config: ResolvedConfig) {
       rootDir = config.root
       await writerRoutesFile()
-      config.command !== 'build' && createWatcher()
+      if (config.command !== 'build')
+        createWatcher()
     },
     async handleHotUpdate({ file, read }) {
       if (file.includes(pagesFolder) && !ignoreFolders.some(folder => file.includes(`/${folder}/`)) && (file.endsWith('.vue'))) {
@@ -163,7 +164,8 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       }
     },
     closeBundle() {
-      watcher && watcher.close()
+      if (watcher)
+        watcher.close()
     },
   } as Plugin
 }
