@@ -89,7 +89,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
         name,
         path: routePath,
         redirect: defineOptions.redirect,
-        component,
+        component: defineOptions.redirect ? undefined : component,
         meta,
         parent: defineOptions.parent,
       }
