@@ -1,7 +1,7 @@
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
-import { routes } from './pages/generoutes'
+import { routes } from './router/routes'
 
 const router = createRouter({
   history: createWebHashHistory(),
