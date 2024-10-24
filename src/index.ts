@@ -15,6 +15,7 @@ import { parse } from '@vue/compiler-sfc'
 import { debounce, slash } from '@antfu/utils'
 import chokidar from 'chokidar'
 import prettier from 'prettier'
+import chalk from 'chalk'
 import { convertToTree, findDuplicateRoutes, toPascalCase } from './utils'
 
 interface Options {
@@ -105,7 +106,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     }
   }
 
-  async function writerRoutesFile() {
+  async function writerRoutesFile(isInit: boolean = false) {
     const { routes } = generateMenusAndRoutes()
 
     let routesStr = `
@@ -122,6 +123,8 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     const filePath = path.resolve(rootDir, routesPath)
     await fs.ensureDir(path.dirname(filePath))
     fs.writeFileSync(filePath, routesStr)
+    // eslint-disable-next-line no-console
+    console.log(`  ✅  ${isInit ? 'routes generated:' : 'routes updated:'} ${chalk.cyan(routesPath)}`)
   }
 
   const debounceWriter = debounce(500, writerRoutesFile)
@@ -146,9 +149,10 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     name: 'vite-plugin-generoutes',
     async configResolved(config: ResolvedConfig) {
       rootDir = config.root
-      await writerRoutesFile()
-      if (config.command !== 'build')
+      await writerRoutesFile(true)
+      if (config.command !== 'build') {
         createWatcher()
+      }
     },
     async handleHotUpdate({ file, read }) {
       if (file.includes(pagesFolder) && !ignoreFolders.some(folder => file.includes(`/${folder}/`)) && (file.endsWith('.vue'))) {
