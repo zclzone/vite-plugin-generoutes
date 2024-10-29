@@ -22,30 +22,25 @@ interface Options {
   /**
    * pages folder
    *
-   * default: `src/pages`
+   * @default src/pages
    */
   pagesFolder: string
   /**
-   * ignore folders
+   * ignore folders, ignore these folders when generating routes
    *
-   * ignore these folders when generating routes
-   *
-   * default: `['components']`
+   * @default ['components']
    */
   ignoreFolders: string[]
   /**
-   * routes file path
+   * routes file path, It can also be a ts file，such as `src/router/routes.ts`
    *
-   * default: `src/router/routes.js`
-   *
-   * It can also be a ts file，such as `src/router/routes.ts`
-   *
+   * @default src/router/routes.js
    */
   routesPath: string
   /**
    * nested routes
    *
-   * default: false
+   * @default false
    */
   nested: boolean
 }
