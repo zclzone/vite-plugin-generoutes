@@ -52,14 +52,12 @@
     "@antfu/utils": "^9.1.0",
     "@vue/compiler-sfc": "^3.5.13",
     "chalk": "^5.4.1",
-    "chokidar": "^4.0.3",
     "fs-extra": "^11.3.0",
     "glob": "^11.0.1",
     "prettier": "^3.5.3"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.10.1",
-    "@antfu/ni": "^24.1.0",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.17.24",
     "bumpp": "^10.1.0",

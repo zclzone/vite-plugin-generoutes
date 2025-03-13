@@ -1,21 +1,19 @@
 /**********************************
  * @Author: Ronnie Zhang
  * @LastEditor: Ronnie Zhang
- * @LastEditTime: 2024/07/01 14:51:47
+ * @LastEditTime: 2025/03/13 16:42:47
  * @Email: zclzone@outlook.com
  * Copyright © 2023 Ronnie Zhang(大脸怪) | https://isme.top
  **********************************/
 
+import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
 import path from 'node:path'
-import fs from 'fs-extra'
-import type { Plugin, ResolvedConfig } from 'vite'
-import type { FSWatcher } from 'chokidar'
-import { globSync } from 'glob'
-import { parse } from '@vue/compiler-sfc'
 import { debounce, slash } from '@antfu/utils'
-import chokidar from 'chokidar'
-import prettier from 'prettier'
+import { parse } from '@vue/compiler-sfc'
 import chalk from 'chalk'
+import fs from 'fs-extra'
+import { globSync } from 'glob'
+import prettier from 'prettier'
 import { convertToTree, findDuplicateRoutes, toPascalCase } from './utils'
 
 interface Options {
@@ -69,9 +67,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
         return null
 
       // 处理文件路径，按文件路径结构进行拆分， 如：src/pages/foo/bar/index.vue =>  ['foo', 'bar']
-      const pathSegments = filePath.replace(`${pagesFolder}`, '').replace('.vue', '').replace('index', '')
-        .split('/')
-        .filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
+      const pathSegments = filePath.replace(`${pagesFolder}`, '').replace('.vue', '').replace('index', '').split('/').filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
 
       const name = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
 
@@ -124,45 +120,41 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
 
   const debounceWriter = debounce(500, writerRoutesFile)
 
-  let watcher: FSWatcher
-  function createWatcher() {
-    watcher = chokidar.watch(`${pagesFolder}/**/*.vue`, { ignoreInitial: true })
-    return watcher.on('all', async (event, path) => {
-      if (ignoreFolders.some(folder => slash(path).includes(`/${folder}/`)))
-        return
-      if ((path.endsWith('.vue')) && (event === 'add' || event === 'unlink')) {
-        debounceWriter()
-        if (watcher) {
-          await watcher.close()
-          createWatcher()
-        }
-      }
-    })
-  }
-
   return {
     name: 'vite-plugin-generoutes',
     async configResolved(config: ResolvedConfig) {
       rootDir = config.root
       await writerRoutesFile(true)
-      if (config.command !== 'build') {
-        createWatcher()
-      }
     },
-    async handleHotUpdate({ file, read }) {
-      if (file.includes(pagesFolder) && !ignoreFolders.some(folder => file.includes(`/${folder}/`)) && (file.endsWith('.vue'))) {
-        // 获取上一次文件的defineOptions内容
-        const prevDefineOptions = defineOptionsCache.get(slash(path.relative(rootDir, file)))
-        const defineOptions = JSON.stringify(parseDefineOptions(file, await read()))
+    configureServer(server: ViteDevServer) {
+      const { watcher } = server
 
-        if (prevDefineOptions !== defineOptions) {
-          debounceWriter()
+      watcher.on('all', async (event: string, filePath: string) => {
+        filePath = slash(filePath)
+
+        if (!filePath.endsWith('.vue') || ignoreFolders.some(folder => filePath.includes(`/${folder}/`)))
+          return
+
+        if (filePath.includes(pagesFolder)) {
+          if (event === 'change') {
+            // 处理文件内容变化事件，与原 handleHotUpdate 逻辑相同
+            const relativePath = path.relative(rootDir, filePath)
+            const slashedPath = slash(relativePath)
+            const prevDefineOptions = defineOptionsCache.get(slashedPath)
+            const content = await fs.readFile(filePath, 'utf-8')
+            const defineOptions = JSON.stringify(parseDefineOptions(filePath, content))
+
+            // 仅当 defineOptions 变化时更新路由
+            if (prevDefineOptions !== defineOptions) {
+              debounceWriter()
+            }
+          }
+          else if (event === 'add' || event === 'unlink') {
+            // 只处理文件的添加和删除事件
+            debounceWriter()
+          }
         }
-      }
-    },
-    closeBundle() {
-      if (watcher)
-        watcher.close()
+      })
     },
   } as Plugin
 }
