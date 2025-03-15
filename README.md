@@ -26,11 +26,10 @@ pnpm add vite-plugin-generoutes -D
 
 ### 🔨 Usage
 
-Configure the plugin in your `vite.config.ts`:
+Configure the plugin in your `vite.config.js`:
 
-```typescript
+```javascript
 import vue from '@vitejs/plugin-vue'
-// vite.config.ts
 import { defineConfig } from 'vite'
 import generoutes from 'vite-plugin-generoutes'
 
@@ -110,9 +109,8 @@ defineOptions({
 
 ### 🚀 Complete Example
 
-```typescript
+```javascript
 import vue from '@vitejs/plugin-vue'
-// vite.config.ts
 import { defineConfig } from 'vite'
 import generoutes from 'vite-plugin-generoutes'
 
@@ -122,7 +120,7 @@ export default defineConfig({
     generoutes({
       pagesFolder: 'src/views',
       ignoreFolders: ['components', 'assets'],
-      routesPath: 'src/router/routes.ts',
+      routesPath: 'src/router/routes.js',
       nested: true
     })
   ]
