@@ -1,112 +1,132 @@
 # vite-plugin-generoutes
 
-A Vite plugin that generate routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.
+A Vite plugin that automatically generates Vue router configuration based on file system.
 
-## Usage
+### ✨ Features
 
-1. Install the plugin:
+- 📁 File-system based routing
+- 🔄 Dynamic and nested routes support
+- 🛠️ Hot reload - routes update when files change
+- 🎨 Customizable route configuration
+- 🧩 Support for route metadata via `defineOptions`
+- 🚦 Route redirection support
+
+### 📦 Installation
 
 ```bash
-npm install vite-plugin-generoutes
+# npm
+npm install vite-plugin-generoutes -D
+
+# yarn
+yarn add vite-plugin-generoutes -D
+
+# pnpm
+pnpm add vite-plugin-generoutes -D
 ```
 
-2. Add the plugin to your `vite.config.js`:
+### 🔨 Usage
 
-```js
+Configure the plugin in your `vite.config.ts`:
+
+```typescript
+import vue from '@vitejs/plugin-vue'
+// vite.config.ts
 import { defineConfig } from 'vite'
 import generoutes from 'vite-plugin-generoutes'
 
 export default defineConfig({
   plugins: [
-    generoutes()
-    // ... other plugins
+    vue(),
+    generoutes({
+      // options
+    })
   ]
 })
 ```
 
-3. Create your page files(`index.vue` or `[...all].vue`) in the `src/pages` directory. Each file in this directory will be treated as a route.
+### ⚙️ Configuration Options
 
-```
-src/routes/pages
-├── index.vue
-├── [...all].vue
-├── user/
-│   ├── index.vue
-│   ├── [id]
-│   │   └── index.vue
-└── post
-    ├── index.vue
-    └── [...all].vue
-```
+| Option          | Type       | Default                  | Description                                             |
+| --------------- | ---------- | ------------------------ | ------------------------------------------------------- |
+| `pagesFolder`   | `string`   | `'src/pages'`            | Path to pages folder                                    |
+| `ignoreFolders` | `string[]` | `['components']`         | Folders to ignore when generating routes                |
+| `routesPath`    | `string`   | `'src/router/routes.js'` | Path to generated routes file, can also be a `.ts` file |
+| `nested`        | `boolean`  | `false`                  | Whether to generate nested routes                       |
 
-The above example will generate the routes file `src/pages/generoutes.js` with the following content:
-```js
-export const routes = [
-  {
-    name: 'Index',
-    path: '/',
-    component: () => import('/src/pages/index.vue'),
-    meta: {},
-  },
-  {
-    name: 'User',
-    path: '/user',
-    component: () => import('/src/pages/user/index.vue'),
-    meta: {},
-  },
-  {
-    name: 'User_[id]',
-    path: '/user/:id',
-    component: () => import('/src/pages/user/[id]/index.vue'),
-    meta: {},
-  },
-  {
-    name: 'User_Post',
-    path: '/user/post',
-    component: () => import('/src/pages/user/post/index.vue'),
-    meta: {},
-  },
-  {
-    name: 'Index_[...all]',
-    path: '/:pathMatch(.*)*',
-    component: () => import('/src/pages/[...all].vue'),
-    meta: {},
-  },
-  {
-    name: 'User_Post_[...all]',
-    path: '/user/post/:pathMatch(.*)*',
-    component: () => import('/src/pages/user/post/[...all].vue'),
-    meta: {},
-  },
-]
-```
+### 📝 Routing Conventions
 
-4. Import the generated routes and create a router instance:
+#### Basic Routes
 
-```js
-import { createRouter, createWebHashHistory } from 'vue-router'
-import { routes } from './pages/generoutes'
+- `src/pages/index.vue` -> `/`
+- `src/pages/about.vue` -> `/about`
+- `src/pages/users/index.vue` -> `/users`
+- `src/pages/users/profile.vue` -> `/users/profile`
 
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes,
+#### Dynamic Routes
+
+- `src/pages/users/[id].vue` -> `/users/:id`
+- `src/pages/users/[...all].vue` -> `/users/:pathMatch(.*)*`
+- `src/pages/[org]/[repo].vue` -> `/:org/:repo`
+
+#### Virtual Directories
+
+- Paths with parentheses in the filename are treated as virtual directories. The parenthesized part will be omitted in the generated route path.
+- For example: `src/pages/(auth)/login.vue` -> `/login`
+
+### 🧠 Custom Routes
+
+You can use `defineOptions` in your Vue files to customize route configuration:
+
+```vue
+<script setup>
+defineOptions({
+  name: 'CustomRouteName',
+  meta: {
+    title: 'Page Title',
+    icon: 'home',
+    requiresAuth: true,
+    enabled: true // Set to false to exclude this route
+  },
+  redirect: '/other-route' // Set redirection
 })
-
-export default router
+</script>
 ```
 
-## Features
+### 🌲 Nested Routes
 
-- Generate routes based on the file structure.
-- Support dynamic routes.
-- Support multiple NotFound routes.
-- Support custom meta data for each route.
-- Support ghost paths, For example, the (admin) folder will not be part of the route path, which is very useful for folder grouping.
-- Support immediate update of the routes file when the file structure or defineOptions changes.
-- Support nested route.
+With the `nested: true` option enabled, you can set nested route relationships using the `parent` property:
 
-## Custom route info，including name and meta
+```vue
+<script setup>
+defineOptions({
+  name: 'ChildRoute',
+  parent: 'ParentRouteName',
+  meta: {
+    title: 'Child Route'
+  }
+})
+</script>
+```
 
-You can define `name` and `meta` fields in the `defineOptions` of your `.vue` file, which will be used to override the default properties of the generated route. The `name` field will be used as the route name, which is very useful for `KeepAlive`. Any property in `defineOptions.meta` will be used as a property of the route `meta`, which makes the route metadata very flexible.
+### 🚀 Complete Example
 
-When you make any changes that may affect the route result, the `src/pages/generoutes.js` file will be updated immediately, and the page will be refreshed without restarting the server.
+```typescript
+import vue from '@vitejs/plugin-vue'
+// vite.config.ts
+import { defineConfig } from 'vite'
+import generoutes from 'vite-plugin-generoutes'
+
+export default defineConfig({
+  plugins: [
+    vue(),
+    generoutes({
+      pagesFolder: 'src/views',
+      ignoreFolders: ['components', 'assets'],
+      routesPath: 'src/router/routes.ts',
+      nested: true
+    })
+  ]
+})
+```
+
+[中文文档](./README.zh_CN.md)
