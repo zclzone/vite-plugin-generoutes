@@ -1,7 +1,7 @@
 {
   "name": "vite-plugin-generoutes",
   "type": "module",
-  "version": "0.3.0-beta.1",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.6.2",
   "description": "A Vite plugin that generate routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.",
   "author": "Ronnie Zhang <zclzone@outlook.com>",
