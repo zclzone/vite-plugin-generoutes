@@ -45,12 +45,20 @@ export default defineConfig({
 
 ### ⚙️ Configuration Options
 
-| Option          | Type       | Default                  | Description                                             |
-| --------------- | ---------- | ------------------------ | ------------------------------------------------------- |
-| `pagesFolder`   | `string`   | `'src/pages'`            | Path to pages folder                                    |
-| `ignoreFolders` | `string[]` | `['components']`         | Folders to ignore when generating routes                |
-| `routesPath`    | `string`   | `'src/router/routes.js'` | Path to generated routes file, can also be a `.ts` file |
-| `nested`        | `boolean`  | `false`                  | Whether to generate nested routes                       |
+| Option          | Type       | Default          | Description                                                                                                       |
+| --------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `pagesFolder`   | `string`   | `'src/pages'`    | Path to pages folder                                                                                              |
+| `ignoreFolders` | `string[]` | `['components']` | Folders to ignore when generating routes                                                                          |
+| `routesPath`    | `string`   | Auto-detected    | Path to generated routes file. Auto-detected based on `tsconfig.json` presence (`.ts` if exists, otherwise `.js`) |
+| `nested`        | `boolean`  | `false`          | Whether to generate nested routes                                                                                 |
+
+### 📘 TypeScript Support
+
+This plugin has first-class TypeScript support:
+
+- **Auto-detection**: Automatically detects TypeScript projects by checking for `tsconfig.json`
+- **Type definitions**: When generating routes for TypeScript projects, the plugin automatically includes type definitions for `RouteMeta` and `GeneratedRoute`
+- **Route typing**: Generated routes are properly typed with `RouteRecordRaw` from `vue-router`
 
 ### 📝 Routing Conventions
 
@@ -125,6 +133,22 @@ export default defineConfig({
     })
   ]
 })
+```
+
+### 💡 Troubleshooting
+
+**Issue**: Route path shows error: *Cannot find module "/src/pages/xxx.vue" or its corresponding type declarations.* Unable to navigate to the file with F12.
+
+**Solution**: Add the following configuration to the `compilerOptions` in your `jsconfig.json` or `tsconfig.json`:
+```json
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "/src/*": ["src/*"]
+    }
+  }
+}
 ```
 
 [中文文档](./README.zh_CN.md)
