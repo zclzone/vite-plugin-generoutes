@@ -149,6 +149,8 @@ export interface RouteMeta {
   icon?: string
   /** Page code */
   code?: string
+  /** Page layout */
+  layout?: string
   /** Whether authentication is required */
   requireAuth?: boolean
   /** Whether to keep alive */
