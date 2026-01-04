@@ -143,12 +143,20 @@ import type { RouteRecordRaw } from 'vue-router'
  * Route meta information
  */
 export interface RouteMeta {
-  /** Route title */
+  /** Page title */
   title?: string
-  /** Route icon */
+  /** Page icon */
   icon?: string
+  /** Page code */
+  code?: string
   /** Whether authentication is required */
-  requiresAuth?: boolean
+  requireAuth?: boolean
+  /** Whether to keep alive */
+  keepAlive?: boolean
+  /** Whether it's the home page */
+  isHome?: boolean
+  /** Whether it's a login page */
+  isLogin?: boolean
   /** Custom properties */
   [key: string]: unknown
 }
