@@ -150,7 +150,7 @@ export interface RouteMeta {
   /** Page code */
   code?: string
   /** Page layout */
-  layout?: string | boolean
+  layout?: string | false
   /** Whether authentication is required */
   requireAuth?: boolean
   /** Whether to keep alive */
