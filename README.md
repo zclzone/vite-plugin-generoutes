@@ -2,6 +2,10 @@
 
 A Vite plugin that automatically generates Vue router configuration based on file system.
 
+### 📋 Prerequisites
+
+- **Node.js**: `20.12.0` or higher
+
 ### ✨ Features
 
 - 📁 File-system based routing
