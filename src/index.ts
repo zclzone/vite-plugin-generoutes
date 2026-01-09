@@ -9,9 +9,9 @@
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
 import type { InternalRoute, RouteMeta } from './utils'
 import path from 'node:path'
+import { styleText } from 'node:util'
 import { debounce, slash } from '@antfu/utils'
 import { parse } from '@vue/compiler-sfc'
-import chalk from 'chalk'
 import fs from 'fs-extra'
 import { globSync } from 'glob'
 import prettier from 'prettier'
@@ -193,7 +193,7 @@ export type GeneratedRoute = RouteRecordRaw & {
     await fs.ensureDir(path.dirname(filePath))
     fs.writeFileSync(filePath, routesStr)
     // eslint-disable-next-line no-console
-    console.log(`  ✅  ${isInit ? 'routes generated:' : 'routes updated:'} ${chalk.cyan(routesPath)}`)
+    console.log(`  ✅  ${isInit ? 'routes generated:' : 'routes updated:'} ${styleText('cyanBright', routesPath)}`)
   }
 
   const debounceWriter = debounce(500, writerRoutesFile)
