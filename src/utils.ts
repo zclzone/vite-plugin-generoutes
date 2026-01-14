@@ -10,6 +10,8 @@ export interface RouteMeta {
   requiresAuth?: boolean
   /** Whether the route is enabled */
   enabled?: boolean
+  /** Layout component name, false to disable layout wrapping */
+  layout?: string | false
   /** Custom properties */
   [key: string]: unknown
 }

@@ -47,6 +47,12 @@ export interface Options {
    */
   pagesFolder: string
   /**
+   * layouts folder
+   *
+   * @default src/layouts
+   */
+  layoutsFolder: string
+  /**
    * ignore folders, ignore these folders when generating routes
    *
    * @default ['components']
@@ -76,6 +82,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   let isTypeScript: boolean
 
   const pagesFolder = options.pagesFolder || 'src/pages'
+  const layoutsFolder = options.layoutsFolder || 'src/layouts'
   const ignoreFolders = options.ignoreFolders || ['components']
   const nested = options.nested || false
 
@@ -126,9 +133,51 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     if (duplicatePaths.length)
       console.warn(`Warning: Duplicate paths found in routes: ${duplicatePaths.join(', ')}`)
 
+    // 按 layout 分组路由
+    const processedRoutes = wrapRoutesWithLayout(nested ? convertToTree(routes) : routes)
+
     return {
-      routes: nested ? convertToTree(routes) : routes,
+      routes: processedRoutes,
     }
+  }
+
+  /**
+   * 将路由按 meta.layout 分组并嵌套到父级布局路由中
+   * meta.layout 为 false 的路由不进行嵌套
+   * meta.layout 未设置时默认使用 'default'
+   */
+  function wrapRoutesWithLayout(routes: InternalRoute[]): InternalRoute[] {
+    const layoutGroups = new Map<string, InternalRoute[]>()
+    const noLayoutRoutes: InternalRoute[] = []
+
+    for (const route of routes) {
+      const layout = route.meta?.layout
+
+      if (layout === false) {
+        noLayoutRoutes.push(route)
+      }
+      else {
+        const layoutName = layout || 'default'
+        const group = layoutGroups.get(layoutName)
+        if (group) {
+          group.push(route)
+        }
+        else {
+          layoutGroups.set(layoutName, [route])
+        }
+      }
+    }
+
+    // 为每个 layout 分组创建父级路由
+    const layoutRoutes = Array.from(layoutGroups, ([layoutName, children]) => ({
+      name: `LAYOUT_${layoutName.toUpperCase()}`,
+      path: `/__layout_${layoutName}__`,
+      component: `@@layout@@/${layoutsFolder}/${layoutName}.vue@@`,
+      meta: {},
+      children,
+    } as InternalRoute))
+
+    return [...noLayoutRoutes, ...layoutRoutes]
   }
 
   async function writerRoutesFile(isInit: boolean = false) {
@@ -183,6 +232,8 @@ export type GeneratedRoute = RouteRecordRaw & {
 
     // 转化component为 () => import('${pagePath}')
     routesStr = routesStr.replace(/"##(.*)##"/g, (_, p1) => `async () => ({...(await import('${p1.split('@@')[0]}')).default, name: '${p1.split('@@')[1]}'})`)
+    // 转化layout component为 () => import('${layoutPath}')
+    routesStr = routesStr.replace(/"@@layout@@(.*)@@"/g, (_, p1) => `() => import('${p1}')`)
 
     // Use appropriate parser based on file type
     const parser = isTypeScript ? 'typescript' : 'babel'

@@ -4,6 +4,7 @@ defineOptions({
   meta: {
     title: '首页',
     icon: 'home',
+    layout: 'home',
   },
 })
 </script>

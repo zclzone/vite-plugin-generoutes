@@ -4,6 +4,7 @@ defineOptions({
   meta: {
     title: '页面不存在',
     icon: '404',
+    layout: false,
   },
 })
 </script>

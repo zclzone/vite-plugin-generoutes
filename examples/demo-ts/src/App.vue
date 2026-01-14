@@ -95,7 +95,7 @@ nav a:hover {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-nav a.router-link-active {
+nav a.router-link-exact-active {
   background-color: rgba(255, 255, 255, 0.3);
   font-weight: bold;
 }

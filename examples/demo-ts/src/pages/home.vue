@@ -4,6 +4,7 @@ defineOptions({
   meta: {
     title: 'Home页面',
     requiresAuth: false,
+    layout: 'home',
   },
 })
 </script>
