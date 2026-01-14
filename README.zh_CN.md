@@ -14,6 +14,7 @@
 - 🎨 可自定义路由配置
 - 🧩 支持通过`defineOptions`设置路由元数据
 - 🚦 支持路由重定向
+- 🖼️ 支持按布局分组路由
 
 ### 📦 安装
 
@@ -52,6 +53,7 @@ export default defineConfig({
 | 选项            | 类型       | 默认值           | 描述                                                                                      |
 | --------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------- |
 | `pagesFolder`   | `string`   | `'src/pages'`    | 页面文件夹路径                                                                            |
+| `layoutsFolder` | `string`   | `'src/layouts'`  | 布局组件文件夹路径                                                                        |
 | `ignoreFolders` | `string[]` | `['components']` | 生成路由时忽略的文件夹                                                                    |
 | `routesPath`    | `string`   | 自动检测         | 生成的路由文件路径，根据 `tsconfig.json` 是否存在自动检测（存在则为 `.ts`，否则为 `.js`） |
 | `nested`        | `boolean`  | `false`          | 是否生成嵌套路由                                                                          |
@@ -119,7 +121,70 @@ defineOptions({
 </script>
 ```
 
-### 🚀 完整示例
+### �️ 布局路由
+
+路由会根据 `meta.layout` 属性自动分组，并包裹在对应的布局父级路由中：
+
+- 设置 `meta.layout: false` 的路由**不会**被布局包裹
+- 未设置 `meta.layout` 的路由默认使用 `'default'` 布局
+- 设置 `meta.layout: 'xxx'` 的路由会使用 `layoutsFolder` 中对应的布局组件
+
+```vue
+<!-- src/pages/login.vue - 不使用布局包裹 -->
+<script setup>
+defineOptions({
+  name: 'Login',
+  meta: {
+    layout: false
+  }
+})
+</script>
+```
+
+```vue
+<!-- src/pages/home.vue - 使用 'admin' 布局 -->
+<script setup>
+defineOptions({
+  name: 'Home',
+  meta: {
+    layout: 'admin'
+  }
+})
+</script>
+```
+
+**生成的路由结构示例：**
+
+```javascript
+[
+  // layout: false 的路由不会被包裹
+  {
+    name: 'Login',
+    path: '/login',
+    component: () => import('/src/pages/login.vue'),
+    meta: { layout: false }
+  },
+  // 路由按布局分组
+  {
+    name: 'LAYOUT_DEFAULT',
+    path: '/__layout_default__',
+    component: () => import('/src/layouts/default.vue'),
+    children: [
+      { name: 'Index', path: '/' }
+    ]
+  },
+  {
+    name: 'LAYOUT_ADMIN',
+    path: '/__layout_admin__',
+    component: () => import('/src/layouts/admin.vue'),
+    children: [
+      { name: 'Home', path: '/home' }
+    ]
+  }
+]
+```
+
+### �🚀 完整示例
 
 ```javascript
 import vue from '@vitejs/plugin-vue'

@@ -14,6 +14,7 @@ A Vite plugin that automatically generates Vue router configuration based on fil
 - 🎨 Customizable route configuration
 - 🧩 Support for route metadata via `defineOptions`
 - 🚦 Route redirection support
+- 🖼️ Layout-based route grouping
 
 ### 📦 Installation
 
@@ -52,6 +53,7 @@ export default defineConfig({
 | Option          | Type       | Default          | Description                                                                                                       |
 | --------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `pagesFolder`   | `string`   | `'src/pages'`    | Path to pages folder                                                                                              |
+| `layoutsFolder` | `string`   | `'src/layouts'`  | Path to layouts folder                                                                                            |
 | `ignoreFolders` | `string[]` | `['components']` | Folders to ignore when generating routes                                                                          |
 | `routesPath`    | `string`   | Auto-detected    | Path to generated routes file. Auto-detected based on `tsconfig.json` presence (`.ts` if exists, otherwise `.js`) |
 | `nested`        | `boolean`  | `false`          | Whether to generate nested routes                                                                                 |
@@ -119,7 +121,70 @@ defineOptions({
 </script>
 ```
 
-### 🚀 Complete Example
+### �️ Layout Routes
+
+Routes are automatically grouped by their `meta.layout` property and wrapped with a parent layout route:
+
+- Routes with `meta.layout: false` will **not** be wrapped with a layout
+- Routes without `meta.layout` will use the `'default'` layout by default
+- Routes with `meta.layout: 'xxx'` will use the corresponding layout component from `layoutsFolder`
+
+```vue
+<!-- src/pages/login.vue - No layout wrapper -->
+<script setup>
+defineOptions({
+  name: 'Login',
+  meta: {
+    layout: false
+  }
+})
+</script>
+```
+
+```vue
+<!-- src/pages/home.vue - Uses 'admin' layout -->
+<script setup>
+defineOptions({
+  name: 'Home',
+  meta: {
+    layout: 'admin'
+  }
+})
+</script>
+```
+
+**Generated route structure example:**
+
+```javascript
+[
+  // Routes with layout: false are not wrapped
+  {
+    name: 'Login',
+    path: '/login',
+    component: () => import('/src/pages/login.vue'),
+    meta: { layout: false }
+  },
+  // Routes are grouped by layout
+  {
+    name: 'LAYOUT_DEFAULT',
+    path: '/__layout_default__',
+    component: () => import('/src/layouts/default.vue'),
+    children: [
+      { name: 'Index', path: '/' }
+    ]
+  },
+  {
+    name: 'LAYOUT_ADMIN',
+    path: '/__layout_admin__',
+    component: () => import('/src/layouts/admin.vue'),
+    children: [
+      { name: 'Home', path: '/home' }
+    ]
+  }
+]
+```
+
+### �🚀 Complete Example
 
 ```javascript
 import vue from '@vitejs/plugin-vue'
