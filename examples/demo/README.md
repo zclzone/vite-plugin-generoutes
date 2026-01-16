@@ -34,8 +34,7 @@ pnpm dev
    - 自定义路由元数据，如 `title`、`icon`、`requiresAuth` 等
 
 5. **嵌套路由**
-   - 使用 `parent` 配置项创建嵌套路由关系
-   - 在 `vite.config.js` 中启用 `nested: true` 选项
+   - 使用 `parent` 配置项创建嵌套路由关系（自动生效，无需额外开关）
 
 6. **路由重定向**
    - 使用 `redirect` 配置项将一个路由重定向到另一个路由
@@ -71,7 +70,7 @@ import Generoutes from 'vite-plugin-generoutes'
 export default defineConfig({
   plugins: [
     vue(),
-    Generoutes({ nested: true }),
+    Generoutes(),
   ],
 })
 ```

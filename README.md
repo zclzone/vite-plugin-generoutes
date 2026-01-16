@@ -56,7 +56,6 @@ export default defineConfig({
 | `layoutsFolder` | `string`   | `'src/layouts'`  | Path to layouts folder                                                                                            |
 | `ignoreFolders` | `string[]` | `['components']` | Folders to ignore when generating routes                                                                          |
 | `routesPath`    | `string`   | Auto-detected    | Path to generated routes file. Auto-detected based on `tsconfig.json` presence (`.ts` if exists, otherwise `.js`) |
-| `nested`        | `boolean`  | `false`          | Whether to generate nested routes                                                                                 |
 
 ### 📘 TypeScript Support
 
@@ -107,7 +106,7 @@ defineOptions({
 
 ### 🌲 Nested Routes
 
-With the `nested: true` option enabled, you can set nested route relationships using the `parent` property:
+Use the `parent` property to set nested route relationships (handled automatically):
 
 ```vue
 <script setup>
@@ -197,8 +196,7 @@ export default defineConfig({
     generoutes({
       pagesFolder: 'src/views',
       ignoreFolders: ['components', 'assets'],
-      routesPath: 'src/router/routes.js',
-      nested: true
+      routesPath: 'src/router/routes.js'
     })
   ]
 })

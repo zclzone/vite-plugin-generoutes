@@ -56,7 +56,6 @@ export default defineConfig({
 | `layoutsFolder` | `string`   | `'src/layouts'`  | 布局组件文件夹路径                                                                        |
 | `ignoreFolders` | `string[]` | `['components']` | 生成路由时忽略的文件夹                                                                    |
 | `routesPath`    | `string`   | 自动检测         | 生成的路由文件路径，根据 `tsconfig.json` 是否存在自动检测（存在则为 `.ts`，否则为 `.js`） |
-| `nested`        | `boolean`  | `false`          | 是否生成嵌套路由                                                                          |
 
 ### 📘 TypeScript 支持
 
@@ -107,7 +106,7 @@ defineOptions({
 
 ### 🌲 嵌套路由
 
-启用`nested: true`选项后，可以通过`parent`属性设置嵌套路由关系：
+使用 `parent` 属性即可建立嵌套路由关系（无需额外开关，自动生效）：
 
 ```vue
 <script setup>
@@ -197,8 +196,7 @@ export default defineConfig({
     generoutes({
       pagesFolder: 'src/views',
       ignoreFolders: ['components', 'assets'],
-      routesPath: 'src/router/routes.js',
-      nested: true
+      routesPath: 'src/router/routes.js'
     })
   ],
 })
