@@ -5,6 +5,6 @@ import Generoutes from 'vite-plugin-generoutes'
 export default defineConfig({
   plugins: [
     vue(),
-    Generoutes({ nested: true }),
+    Generoutes(),
   ],
 })

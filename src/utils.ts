@@ -2,16 +2,24 @@
  * Route meta information
  */
 export interface RouteMeta {
-  /** Route title */
+  /** Page title */
   title?: string
-  /** Route icon */
+  /** Page icon */
   icon?: string
+  /** Page code */
+  code?: string
+  /** Page layout */
+  layout?: string | false
   /** Whether authentication is required */
-  requiresAuth?: boolean
+  requireAuth?: boolean
+  /** Whether to keep alive */
+  keepAlive?: boolean
   /** Whether the route is enabled */
   enabled?: boolean
-  /** Layout component name, false to disable layout wrapping */
-  layout?: string | false
+  /** Whether it's the home page */
+  isHome?: boolean
+  /** Whether it's a login page */
+  isLogin?: boolean
   /** Custom properties */
   [key: string]: unknown
 }
@@ -29,7 +37,7 @@ export interface InternalRoute {
   /** Route component placeholder */
   component?: string
   /** Route meta information */
-  meta: RouteMeta
+  meta?: RouteMeta
   /** Parent route name (for nested routes) */
   parent?: string
   /** Child routes */
@@ -44,7 +52,7 @@ export function toPascalCase(str: string): string {
     })
 }
 
-export function convertToTree(routes: InternalRoute[]): InternalRoute[] {
+export function nestRoutes(routes: InternalRoute[]): InternalRoute[] {
   const nodeMap: Record<string, InternalRoute> = {}
   const result: InternalRoute[] = []
 

@@ -7,6 +7,7 @@
  **********************************/
 
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
+import type { RouteRecordRaw } from 'vue-router'
 import type { InternalRoute, RouteMeta } from './utils'
 import path from 'node:path'
 import { styleText } from 'node:util'
@@ -15,27 +16,15 @@ import { parse } from '@vue/compiler-sfc'
 import fs from 'fs-extra'
 import { globSync } from 'glob'
 import prettier from 'prettier'
-import { convertToTree, findDuplicateRoutes, toPascalCase } from './utils'
+import { findDuplicateRoutes, nestRoutes, toPascalCase } from './utils'
 
-export type { InternalRoute, RouteMeta }
+export type { RouteMeta }
 
 /**
  * Generated route record with proper typing for vue-router
  */
-export interface GeneratedRoute {
-  /** Route name */
-  name: string
-  /** Route path */
-  path: string
-  /** Redirect path */
-  redirect?: string
-  /** Route component */
-  component?: () => Promise<any>
-  /** Route meta information */
-  meta: RouteMeta
-  /** Parent route name (for nested routes) */
-  parent?: string
-  /** Child routes */
+export type GeneratedRoute = RouteRecordRaw & {
+  meta?: RouteMeta
   children?: GeneratedRoute[]
 }
 
@@ -65,12 +54,6 @@ export interface Options {
    * @default src/router/routes.ts (if tsconfig.json exists) or src/router/routes.js
    */
   routesPath: string
-  /**
-   * nested routes
-   *
-   * @default false
-   */
-  nested: boolean
 }
 
 function VitePluginGeneroutes(options: Partial<Options> = {}) {
@@ -84,7 +67,6 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
   const pagesFolder = options.pagesFolder || 'src/pages'
   const layoutsFolder = options.layoutsFolder || 'src/layouts'
   const ignoreFolders = options.ignoreFolders || ['components']
-  const nested = options.nested || false
 
   const defineOptionsCache = new Map()
 
@@ -96,36 +78,36 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     return fs.existsSync(tsconfigPath)
   }
 
-  function generateMenusAndRoutes() {
+  function generateRoutes(): InternalRoute[] {
     const pages = globSync(`${pagesFolder}/**/*.vue`, { ignore: ignoreFolders.map(folder => `${pagesFolder}/**/${folder}/**`) })
-    const routes = pages.map((filePath) => {
+    const routes: InternalRoute[] = []
+    for (let filePath of pages) {
       filePath = slash(filePath)
       const defineOptions = parseDefineOptions(filePath) || {}
       defineOptionsCache.set(filePath, JSON.stringify(defineOptions))
-      const meta = defineOptions.meta || {}
+      const meta: RouteMeta = defineOptions.meta || {}
 
       if (meta.enabled === false)
-        return null
+        continue
 
       // 处理文件路径，按文件路径结构进行拆分， 如：src/pages/foo/bar/index.vue =>  ['foo', 'bar']
       const pathSegments = filePath.replace(`${pagesFolder}`, '').replace('.vue', '').replace('index', '').split('/').filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
 
-      const name = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
+      const name: string = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
 
       // component作个标记，方便转化成 () => import('${pagePath}')
       const component = `##/${filePath}@@${name}##`
 
       const routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1 === '...all' ? ':pathMatch(.*)*' : p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
-
-      return {
+      routes.push({
         name,
         path: routePath,
         redirect: defineOptions.redirect,
+        parent: defineOptions.parent,
         component: defineOptions.redirect ? undefined : component,
         meta,
-        parent: defineOptions.parent,
-      } as InternalRoute
-    }).filter((route): route is InternalRoute => route !== null)
+      })
+    }
 
     const { duplicateNames, duplicatePaths } = findDuplicateRoutes(routes)
     if (duplicateNames.length)
@@ -134,11 +116,7 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
       console.warn(`Warning: Duplicate paths found in routes: ${duplicatePaths.join(', ')}`)
 
     // 按 layout 分组路由
-    const processedRoutes = wrapRoutesWithLayout(nested ? convertToTree(routes) : routes)
-
-    return {
-      routes: processedRoutes,
-    }
+    return wrapRoutesWithLayout(nestRoutes(routes))
   }
 
   /**
@@ -169,56 +147,23 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     }
 
     // 为每个 layout 分组创建父级路由
-    const layoutRoutes = Array.from(layoutGroups, ([layoutName, children]) => ({
-      name: `LAYOUT_${layoutName.toUpperCase()}`,
+    const layoutRoutes: InternalRoute[] = Array.from(layoutGroups, ([layoutName, children]) => ({
+      name: `__LAYOUT_${layoutName.toUpperCase()}__`,
       path: `/__layout_${layoutName}__`,
       component: `@@layout@@/${layoutsFolder}/${layoutName}.vue@@`,
-      meta: {},
       children,
-    } as InternalRoute))
+    }))
 
-    return [...noLayoutRoutes, ...layoutRoutes]
+    return layoutRoutes.concat(noLayoutRoutes)
   }
 
   async function writerRoutesFile(isInit: boolean = false) {
-    const { routes } = generateMenusAndRoutes()
+    const routes = generateRoutes()
 
     // Generate TypeScript type definitions
     const typeDefinitions = isTypeScript
       ? `
-import type { RouteRecordRaw } from 'vue-router'
-
-/**
- * Route meta information
- */
-export interface RouteMeta {
-  /** Page title */
-  title?: string
-  /** Page icon */
-  icon?: string
-  /** Page code */
-  code?: string
-  /** Page layout */
-  layout?: string | false
-  /** Whether authentication is required */
-  requireAuth?: boolean
-  /** Whether to keep alive */
-  keepAlive?: boolean
-  /** Whether it's the home page */
-  isHome?: boolean
-  /** Whether it's a login page */
-  isLogin?: boolean
-  /** Custom properties */
-  [key: string]: unknown
-}
-
-/**
- * Generated route type with proper typing
- */
-export type GeneratedRoute = RouteRecordRaw & {
-  meta?: RouteMeta
-  children?: GeneratedRoute[]
-}
+import type { GeneratedRoute } from 'vite-plugin-generoutes'
 `
       : ''
 
