@@ -41,7 +41,6 @@
     "prepublishOnly": "nr build",
     "release": "bumpp && npm publish",
     "test": "vitest",
-    "typecheck": "tsc --noEmit",
     "prepare": "simple-git-hooks",
     "up:deps": "taze major -I"
   },

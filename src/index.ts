@@ -7,7 +7,6 @@
  **********************************/
 
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
-import type { RouteRecordRaw } from 'vue-router'
 import type { InternalRoute, RouteMeta } from './utils'
 import path from 'node:path'
 import { styleText } from 'node:util'
@@ -19,14 +18,6 @@ import prettier from 'prettier'
 import { findDuplicateRoutes, nestRoutes, toPascalCase } from './utils'
 
 export type { RouteMeta }
-
-/**
- * Generated route record with proper typing for vue-router
- */
-export type GeneratedRoute = RouteRecordRaw & {
-  meta?: RouteMeta
-  children?: GeneratedRoute[]
-}
 
 export interface Options {
   /**
@@ -163,7 +154,13 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     // Generate TypeScript type definitions
     const typeDefinitions = isTypeScript
       ? `
-import type { GeneratedRoute } from 'vite-plugin-generoutes'
+import type { RouteMeta } from 'vite-plugin-generoutes'
+import type { RouteRecordRaw } from 'vue-router'
+
+export type GeneratedRoute = RouteRecordRaw & {
+  meta?: RouteMeta
+  children?: GeneratedRoute[]
+}
 `
       : ''
 
