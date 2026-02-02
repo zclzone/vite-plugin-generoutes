@@ -2,7 +2,7 @@
   "name": "vite-plugin-generoutes",
   "type": "module",
   "version": "2.0.0",
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "pnpm@10.28.2",
   "description": "A Vite plugin that generate routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.",
   "author": "Ronnie Zhang <zclzone@outlook.com>",
   "license": "MIT",
@@ -52,25 +52,25 @@
     "@antfu/utils": "^9.3.0",
     "fs-extra": "^11.3.3",
     "glob": "^13.0.0",
-    "prettier": "^3.7.4"
+    "prettier": "^3.8.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.7.3",
+    "@antfu/eslint-config": "^7.2.0",
     "@types/fs-extra": "^11.0.4",
-    "@types/node": "^25.0.3",
-    "bumpp": "^10.1.0",
+    "@types/node": "^25.2.0",
+    "bumpp": "^10.4.0",
     "eslint": "^9.39.2",
     "esno": "^4.8.0",
     "lint-staged": "^16.2.7",
-    "pnpm": "^10.27.0",
+    "pnpm": "^10.28.2",
     "rimraf": "^6.1.2",
     "simple-git-hooks": "^2.13.1",
     "taze": "^19.9.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "unbuild": "^3.6.1",
-    "vitest": "^4.0.16",
-    "vue-router": "^4.6.4"
+    "vitest": "^4.0.18",
+    "vue-router": "^5.0.1"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
