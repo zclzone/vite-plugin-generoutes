@@ -50,7 +50,6 @@
   },
   "dependencies": {
     "@antfu/utils": "^9.3.0",
-    "@vue/compiler-sfc": "^3.5.26",
     "fs-extra": "^11.3.3",
     "glob": "^13.0.0",
     "prettier": "^3.7.4"

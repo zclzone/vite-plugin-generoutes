@@ -11,7 +11,6 @@ import type { InternalRoute, RouteMeta } from './utils'
 import path from 'node:path'
 import { styleText } from 'node:util'
 import { debounce, slash } from '@antfu/utils'
-import { parse } from '@vue/compiler-sfc'
 import fs from 'fs-extra'
 import { globSync } from 'glob'
 import prettier from 'prettier'
@@ -238,12 +237,8 @@ export type GeneratedRoute = RouteRecordRaw & {
 
 function parseDefineOptions(filePath: string, content?: string) {
   content = content ?? fs.readFileSync(filePath, 'utf-8')
-  const { descriptor } = parse(content)
-
-  // 从 setup script 中提取 defineOptions
-  const setupScript = descriptor.scriptSetup?.content
-  if (setupScript) {
-    const defineOptionsMatch = setupScript.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
+  if (content) {
+    const defineOptionsMatch = content.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
     if (defineOptionsMatch) {
       try {
         return new Function(`return ${defineOptionsMatch[1]}`)()
