@@ -235,20 +235,58 @@ export type GeneratedRoute = RouteRecordRaw & {
   } as Plugin
 }
 
+/**
+ * 解析 defineOptions 中的已知字段（name, parent, redirect, meta）
+ * 通过正则提取字符串值和对象值，避免未定义变量导致的解析错误
+ */
 function parseDefineOptions(filePath: string, content?: string) {
   content = content ?? fs.readFileSync(filePath, 'utf-8')
-  if (content) {
-    const defineOptionsMatch = content.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
-    if (defineOptionsMatch) {
-      try {
-        return new Function(`return ${defineOptionsMatch[1]}`)()
-      }
-      catch (e) {
-        throw new Error(`Failed to parse defineOptions in ${filePath}: ${e}`)
+  if (!content)
+    return {}
+
+  const defineOptionsMatch = content.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
+  if (!defineOptionsMatch)
+    return {}
+
+  const optionsStr = defineOptionsMatch[1]!
+  const result: Record<string, any> = {}
+
+  // 提取字符串类型字段: name, parent, redirect
+  const stringFields = ['name', 'parent', 'redirect']
+  for (const field of stringFields) {
+    const match = optionsStr.match(new RegExp(`${field}\\s*:\\s*(['"\`])([^'"\`]*?)\\1`))
+    if (match)
+      result[field] = match[2]
+  }
+
+  // 提取 meta 对象（支持嵌套花括号）
+  const metaMatch = optionsStr.match(/meta\s*:\s*(\{)/)
+  if (metaMatch) {
+    const startIndex = optionsStr.indexOf(metaMatch[0]) + metaMatch[0].length - 1
+    let depth = 0
+    let endIndex = startIndex
+
+    for (let i = startIndex; i < optionsStr.length; i++) {
+      if (optionsStr[i] === '{')
+        depth++
+      else if (optionsStr[i] === '}')
+        depth--
+      if (depth === 0) {
+        endIndex = i + 1
+        break
       }
     }
+
+    const metaStr = optionsStr.slice(startIndex, endIndex)
+    try {
+      result.meta = new Function(`return ${metaStr}`)()
+    }
+    catch {
+      // meta 解析失败时忽略
+    }
   }
-  return {}
+
+  return result
 }
 
 export default VitePluginGeneroutes
