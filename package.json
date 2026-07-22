@@ -1,23 +1,34 @@
 {
-  "name": "vite-plugin-generoutes",
+  "name": "vue-auto-pages",
   "type": "module",
-  "version": "2.0.2",
+  "version": "0.0.2",
   "packageManager": "pnpm@10.28.2",
-  "description": "A Vite plugin that generate routes based on the file structure, supports dynamic routes, and supports custom meta data for each route.",
+  "description": "Convention-based file routing for Vue and Vite with layouts, nested routes, typed metadata, and HMR.",
   "author": "Ronnie Zhang <zclzone@outlook.com>",
   "license": "MIT",
-  "homepage": "https://github.com/zclzone/vite-plugin-generoutes",
+  "homepage": "https://github.com/zclzone/vue-auto-pages",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zclzone/vite-plugin-generoutes.git"
+    "url": "git+https://github.com/zclzone/vue-auto-pages.git"
   },
-  "bugs": "https://github.com/zclzone/vite-plugin-generoutes/issues",
-  "keywords": [],
+  "bugs": "https://github.com/zclzone/vue-auto-pages/issues",
+  "keywords": [
+    "vue",
+    "vite",
+    "vue-router",
+    "file-based-routing",
+    "pages",
+    "layouts"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./client.d.ts",
+      "default": "./client.d.ts"
     }
   },
   "main": "./dist/index.js",
@@ -25,6 +36,9 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "client": [
+        "./client.d.ts"
+      ],
       "*": [
         "./dist/*",
         "./dist/index.d.ts"
@@ -32,11 +46,16 @@
     }
   },
   "files": [
+    "client.d.ts",
     "dist"
   ],
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "start": "tsup --watch",
     "build": "tsup",
+    "verify": "pnpm build && node scripts/verify-errors.mjs",
     "lint": "eslint .",
     "prepublishOnly": "nr build",
     "release": "bumpp && npm publish",
@@ -50,14 +69,13 @@
   },
   "dependencies": {
     "@antfu/utils": "^9.3.0",
-    "fs-extra": "^11.3.3",
-    "glob": "^13.0.0",
-    "prettier": "^3.8.1"
+    "@babel/parser": "^7.29.0",
+    "@vue/compiler-sfc": "^3.5.27",
+    "glob": "^13.0.0"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^7.2.0",
     "@antfu/ni": "^28.2.0",
-    "@types/fs-extra": "^11.0.4",
     "@types/node": "^25.2.0",
     "bumpp": "^10.4.0",
     "eslint": "^9.39.2",
