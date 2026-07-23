@@ -4,7 +4,8 @@ defineOptions({
   meta: {
     title: '管理面板',
     icon: 'dashboard',
-    requiresAuth: true,
+    requireAuth: true,
+    layout: 'admin',
   },
 })
 </script>
@@ -14,6 +15,7 @@ defineOptions({
     <h2>管理面板</h2>
     <p>这是由文件 <code>src/pages/(admin)/dashboard.vue</code> 生成的路由页面</p>
     <p>路由路径: <code>/dashboard</code> (注意：<code>(admin)</code> 作为虚拟目录被忽略)</p>
+    <p>该页面同时通过 <code>meta.layout: 'admin'</code> 使用独立布局。</p>
     <div class="info-box">
       <h3>虚拟目录说明</h3>
       <p>路径中的 <code>(admin)</code> 部分是一个虚拟目录，它不会出现在最终的路由路径中。</p>

@@ -3,64 +3,28 @@ defineOptions({
   name: 'UserIndex',
   meta: {
     title: '用户列表',
-    icon: 'user',
+    layout: 'default',
   },
 })
 </script>
 
 <template>
-  <div class="page user-page">
-    <h2>👥 用户列表</h2>
-    <p>这是由文件 <code>src/pages/user/index.vue</code> 生成的路由页面</p>
-    <p>路由路径: <code>/user</code></p>
-    <div class="user-links">
-      <router-link to="/user/profile">
-        查看资料
-      </router-link>
-      <router-link to="/user/123/zhang">
-        用户详情示例
-      </router-link>
+  <section class="demo-page">
+    <p class="page-kicker">
+      Directory index
+    </p>
+    <h2>用户目录首页</h2>
+    <p><code>user/index.vue</code> 不增加 index 片段，直接生成完整路径 <code>/user</code>。</p>
+    <div class="fact-grid">
+      <div class="fact">
+        <span>完整路径</span><code>/user</code>
+      </div>
+      <div class="fact">
+        <span>路由 path</span><code>/user</code>
+      </div>
+      <div class="fact">
+        <span>路由结构</span><code>扁平路由</code>
+      </div>
     </div>
-    <router-view />
-  </div>
+  </section>
 </template>
-
-<style scoped>
-.page {
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.user-page {
-  background-color: #f0f8ff;
-}
-
-h2 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.user-links {
-  margin-top: 15px;
-  display: flex;
-  gap: 10px;
-}
-
-.user-links a {
-  padding: 8px 16px;
-  background: #667eea;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-}
-
-.user-links a:hover {
-  background: #5a6fd6;
-}
-</style>

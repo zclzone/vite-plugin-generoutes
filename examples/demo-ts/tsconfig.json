@@ -3,14 +3,13 @@
     "target": "ESNext",
     "jsx": "preserve",
     "lib": ["DOM", "ESNext"],
-    "baseUrl": ".",
     "module": "ESNext",
     "moduleResolution": "bundler",
     "paths": {
-      "/src/*": ["src/*"]
+      "/src/*": ["./src/*"]
     },
     "resolveJsonModule": true,
-    "types": ["vite/client"],
+    "types": ["vite/client", "vue-auto-pages/client"],
     "allowJs": true,
     "strict": true,
     "strictNullChecks": true,

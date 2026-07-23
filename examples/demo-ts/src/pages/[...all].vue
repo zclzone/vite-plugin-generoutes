@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
 defineOptions({
   name: 'NotFoundPage',
   meta: {
@@ -7,52 +10,30 @@ defineOptions({
     layout: false,
   },
 })
+
+const route = useRoute()
+const explanation = computed(() => {
+  if (route.query.case === 'disabled')
+    return 'disabled.vue 设置了 enabled: false，因此没有进入生成路由树。'
+  if (route.query.case === 'ignored')
+    return 'pages/components 命中 ignoreFolders，因此 RouteInspector.vue 不是页面路由。'
+  return '当前地址没有匹配其他页面，因此由根级通配符接管。'
+})
 </script>
 
 <template>
-  <div class="page not-found-page">
-    <h2>🔍 404 - 页面不存在</h2>
-    <p>这是由文件 <code>src/pages/[...all].vue</code> 生成的全局捕获路由</p>
-    <p>路由路径: <code>/:pathMatch(.*)*</code></p>
-    <router-link to="/" class="back-link">
-      返回首页
-    </router-link>
-  </div>
+  <article class="demo-page">
+    <p class="page-kicker">
+      Catch-all / 404
+    </p>
+    <h2>没有页面匹配这条路径。</h2>
+    <p>根目录的 <code>[...all].vue</code> 生成 <code>/:pathMatch(.*)*</code>，并保持无布局。</p>
+    <div class="callout">
+      {{ explanation }}<br>
+      当前地址：<code>{{ route.path }}</code>
+    </div>
+    <RouterLink to="/">
+      返回根页面
+    </RouterLink>
+  </article>
 </template>
-
-<style scoped>
-.page {
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.not-found-page {
-  background-color: #fff0f0;
-  text-align: center;
-}
-
-h2 {
-  margin-bottom: 15px;
-  color: #e74c3c;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.back-link {
-  display: inline-block;
-  margin-top: 20px;
-  padding: 10px 20px;
-  background: #667eea;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-}
-
-.back-link:hover {
-  background: #5a6fd6;
-}
-</style>

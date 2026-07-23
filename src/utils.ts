@@ -2,24 +2,12 @@
  * Route meta information
  */
 export interface RouteMeta {
-  /** Page title */
-  title?: string
-  /** Page icon */
-  icon?: string
-  /** Page code */
-  code?: string
   /** Page layout */
   layout?: string | false
-  /** Whether authentication is required */
-  requireAuth?: boolean
   /** Whether to keep alive */
   keepAlive?: boolean
   /** Whether the route is enabled */
   enabled?: boolean
-  /** Whether it's the home page */
-  isHome?: boolean
-  /** Whether it's a login page */
-  isLogin?: boolean
   /** Custom properties */
   [key: string]: unknown
 }
@@ -29,7 +17,7 @@ export interface RouteMeta {
  */
 export interface InternalRoute {
   /** Route name */
-  name: string
+  name?: string
   /** Route path */
   path: string
   /** Redirect path */
@@ -38,8 +26,6 @@ export interface InternalRoute {
   component?: string
   /** Route meta information */
   meta?: RouteMeta
-  /** Parent route name (for nested routes) */
-  parent?: string
   /** Child routes */
   children?: InternalRoute[]
 }
@@ -52,62 +38,30 @@ export function toPascalCase(str: string): string {
     })
 }
 
-export function nestRoutes(routes: InternalRoute[]): InternalRoute[] {
-  const nodeMap: Record<string, InternalRoute> = {}
-  const result: InternalRoute[] = []
+export function assertUniqueRoutes(routes: InternalRoute[]) {
+  const names = new Map<string, InternalRoute>()
+  const paths = new Map<string, InternalRoute>()
 
-  routes.forEach((route) => {
-    const { parent, ...node } = route
-    nodeMap[node.name] = node as InternalRoute
-  })
-
-  routes.forEach((route) => {
-    if (route.parent) {
-      const parentNode = nodeMap[route.parent]
-      if (parentNode) {
-        if (!parentNode.children) {
-          parentNode.children = []
-        }
-        parentNode.children.push(nodeMap[route.name])
-      }
-    }
-    else {
-      result.push(nodeMap[route.name])
-    }
-  })
-
-  return result
-}
-
-export interface DuplicateRoutesResult {
-  duplicateNames: string[]
-  duplicatePaths: string[]
-}
-
-export function findDuplicateRoutes(routes: InternalRoute[]): DuplicateRoutesResult {
-  const nameSet = new Set<string>()
-  const pathSet = new Set<string>()
-  const duplicateNames: string[] = []
-  const duplicatePaths: string[] = []
-
-  for (const route of routes) {
-    if (nameSet.has(route.name)) {
-      duplicateNames.push(route.name)
-    }
-    else {
-      nameSet.add(route.name)
+  function visit(route: InternalRoute, parentPath = '') {
+    if (route.name) {
+      const nameMatch = names.get(route.name)
+      if (nameMatch)
+        throw new Error(`Duplicate route name "${route.name}" for paths "${nameMatch.path}" and "${route.path}"`)
+      names.set(route.name, route)
     }
 
-    if (pathSet.has(route.path)) {
-      duplicatePaths.push(route.path)
-    }
-    else {
-      pathSet.add(route.path)
-    }
+    const basePath = parentPath === '/' ? '' : parentPath.replace(/\/$/, '')
+    const fullPath = route.path.startsWith('/') ? route.path : `${basePath}/${route.path}`
+    const normalizedPath = fullPath.length > 1 ? fullPath.replace(/\/$/, '') : fullPath
+    const routePattern = normalizedPath.replace(/:[a-z_]\w*/gi, ':')
+    const pathMatch = paths.get(routePattern)
+    if (pathMatch)
+      throw new Error(`Duplicate route path "${normalizedPath}" for routes "${pathMatch.name || '(unnamed)'}" and "${route.name || '(unnamed)'}"`)
+    if (!pathMatch)
+      paths.set(routePattern, route)
+
+    route.children?.forEach(child => visit(child, normalizedPath))
   }
 
-  return {
-    duplicateNames,
-    duplicatePaths,
-  }
+  routes.forEach(route => visit(route))
 }

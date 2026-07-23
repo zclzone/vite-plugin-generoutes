@@ -8,15 +8,25 @@
 
 import type { Plugin, ResolvedConfig, ViteDevServer } from 'vite'
 import type { InternalRoute, RouteMeta } from './utils'
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { styleText } from 'node:util'
 import { debounce, slash } from '@antfu/utils'
-import fs from 'fs-extra'
-import { globSync } from 'glob'
-import prettier from 'prettier'
-import { findDuplicateRoutes, nestRoutes, toPascalCase } from './utils'
+import { parse as parseScript } from '@babel/parser'
+import { parse as parseSfc } from '@vue/compiler-sfc'
+import { glob } from 'glob'
+import { assertUniqueRoutes, toPascalCase } from './utils'
 
 export type { RouteMeta }
+
+export const virtualModuleId = 'virtual:vue-auto-pages'
+const resolvedVirtualModuleId = `\0${virtualModuleId}`
+
+interface ParsedDefineOptions {
+  name?: string
+  redirect?: string
+  meta?: RouteMeta
+}
 
 export interface Options {
   /**
@@ -38,80 +48,165 @@ export interface Options {
    */
   ignoreFolders: string[]
   /**
-   * routes file path, It can also be a ts file，such as `src/router/routes.ts`
-   * Auto-detected based on tsconfig.json presence if not specified
+   * default layout for pages without meta.layout
    *
-   * @default src/router/routes.ts (if tsconfig.json exists) or src/router/routes.js
+   * @default 'default'
    */
-  routesPath: string
+  defaultLayout: string | false
 }
 
-function VitePluginGeneroutes(options: Partial<Options> = {}) {
-  if (options.routesPath && !(['.ts', '.js'].includes(path.extname(options.routesPath))))
-    throw new Error('routesPath must be a js or ts file path, such as src/router/routes.js')
+function segmentToRoutePath(segment: string) {
+  const paramName = '[a-z_]\\w*'
+  const catchAll = segment.match(new RegExp(`^\\[\\.\\.\\.(${paramName})\\]$`, 'i'))
+  if (catchAll)
+    return `:${catchAll[1] === 'all' ? 'pathMatch' : catchAll[1]}(.*)*`
 
+  const optional = segment.match(new RegExp(`^\\[\\[(${paramName})\\]\\]$`, 'i'))
+  if (optional)
+    return `:${optional[1]}?`
+
+  const dynamic = segment.match(/^\[([^\]]+)\]$/)
+  if (dynamic) {
+    const params = dynamic[1].split(',')
+    if (params.every(param => new RegExp(`^${paramName}$`, 'i').test(param)))
+      return params.map(param => `:${param}`).join('/')
+  }
+
+  if (segment.includes('[') || segment.includes(']'))
+    throw new Error(`Invalid dynamic route segment "${segment}"`)
+  return segment
+}
+
+function serializeComponent(component: string) {
+  if (component.startsWith('##') && component.endsWith('##')) {
+    const { path: importPath, name } = JSON.parse(decodeURIComponent(component.slice(2, -2)))
+    return `async () => ({...(await import(${JSON.stringify(importPath)})).default, name: ${JSON.stringify(name)}})`
+  }
+  if (component.startsWith('@@layout@@') && component.endsWith('@@')) {
+    const importPath = decodeURIComponent(component.slice('@@layout@@'.length, -2))
+    return `() => import(${JSON.stringify(importPath)})`
+  }
+  return JSON.stringify(component)
+}
+
+function serializeRoute(route: InternalRoute, level = 0): string {
+  const indent = '  '.repeat(level)
+  const childIndent = '  '.repeat(level + 1)
+  const properties = [`path: ${JSON.stringify(route.path)}`]
+  if (route.name !== undefined)
+    properties.unshift(`name: ${JSON.stringify(route.name)}`)
+  if (route.redirect !== undefined)
+    properties.push(`redirect: ${JSON.stringify(route.redirect)}`)
+  if (route.component !== undefined)
+    properties.push(`component: ${serializeComponent(route.component)}`)
+  if (route.meta !== undefined)
+    properties.push(`meta: ${JSON.stringify(route.meta)}`)
+  if (route.children?.length) {
+    properties.push(`children: [\n${route.children.map(child => serializeRoute(child, level + 2)).join(',\n')}\n${childIndent}]`)
+  }
+  return `${indent}{\n${properties.map(property => `${childIndent}${property}`).join(',\n')}\n${indent}}`
+}
+
+function isInsideDirectory(filePath: string, directory: string) {
+  const relativePath = path.relative(directory, filePath)
+  return relativePath !== '..'
+    && !relativePath.startsWith(`..${path.sep}`)
+    && !path.isAbsolute(relativePath)
+}
+
+function VueAutoPages(options: Partial<Options> = {}) {
   let rootDir: string
-  let routesPath: string
-  let isTypeScript: boolean
+  let pagesRoot: string
+  let layoutsRoot: string
+  let generatedCode = ''
+  let devServer: ViteDevServer | undefined
+  const pageRouteCache = new Map<string, InternalRoute | null>()
 
   const pagesFolder = options.pagesFolder || 'src/pages'
   const layoutsFolder = options.layoutsFolder || 'src/layouts'
   const ignoreFolders = options.ignoreFolders || ['components']
+  const defaultLayout = options.defaultLayout === undefined ? 'default' : options.defaultLayout
+  const normalizedIgnoreFolders = ignoreFolders.map(folder => slash(folder).replace(/^\/+|\/+$/g, ''))
 
-  const defineOptionsCache = new Map()
+  function isIgnoredPage(relativePath: string) {
+    return normalizedIgnoreFolders.some(folder =>
+      relativePath.startsWith(`${folder}/`) || relativePath.includes(`/${folder}/`),
+    )
+  }
 
-  /**
-   * Detect if the project is a TypeScript project by checking for tsconfig.json
-   */
-  function detectTypeScriptProject(): boolean {
-    const tsconfigPath = path.resolve(rootDir, 'tsconfig.json')
-    return fs.existsSync(tsconfigPath)
+  function toViteImportPath(filePath: string) {
+    const relativePath = slash(path.relative(rootDir, filePath))
+    return relativePath.startsWith('.') ? relativePath : `/${relativePath}`
+  }
+
+  async function createPageRoute(filePath: string, content?: string): Promise<InternalRoute | null> {
+    const source = content ?? await readFile(filePath, 'utf-8')
+    const { descriptor, errors } = parseSfc(source, { filename: filePath })
+    if (errors.length)
+      throw new Error(`Failed to parse ${filePath}: ${errors[0] instanceof Error ? errors[0].message : String(errors[0])}`)
+
+    const relativePath = slash(path.relative(pagesRoot, filePath))
+    const defineOptions = parseDefineOptions(filePath, descriptor.scriptSetup?.content)
+    const meta: RouteMeta = defineOptions.meta || {}
+    const sourceSegments = relativePath
+      .slice(0, -'.vue'.length)
+      .split('/')
+      .filter(Boolean)
+    const routeSegments = sourceSegments.filter(segment => !/^\(.*\)$/.test(segment))
+    const name = defineOptions.name || routeSegments.map(item => toPascalCase(item)).join('_') || 'Index'
+
+    let routePath: string
+    try {
+      routePath = `/${routeSegments
+        .map(segment => segment.toLowerCase() === 'index' ? '' : segmentToRoutePath(segment))
+        .filter(Boolean)
+        .join('/')}`
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Invalid route path in ${filePath}: ${message}`, { cause: error })
+    }
+
+    if (meta.enabled === false)
+      return null
+    return {
+      name,
+      path: routePath,
+      redirect: defineOptions.redirect,
+      component: defineOptions.redirect === undefined
+        ? `##${encodeURIComponent(JSON.stringify({ path: toViteImportPath(filePath), name }))}##`
+        : undefined,
+      meta,
+    }
+  }
+
+  async function initializePageRoutes() {
+    const pages = await glob('**/*.vue', {
+      cwd: pagesRoot,
+      ignore: normalizedIgnoreFolders.map(folder => `**/${folder}/**`),
+    })
+    pageRouteCache.clear()
+    await Promise.all(pages.map(async (relativeFilePath) => {
+      const filePath = slash(path.resolve(pagesRoot, relativeFilePath))
+      pageRouteCache.set(filePath, await createPageRoute(filePath))
+    }))
   }
 
   function generateRoutes(): InternalRoute[] {
-    const pages = globSync(`${pagesFolder}/**/*.vue`, { ignore: ignoreFolders.map(folder => `${pagesFolder}/**/${folder}/**`) })
-    const routes: InternalRoute[] = []
-    for (let filePath of pages) {
-      filePath = slash(filePath)
-      const defineOptions = parseDefineOptions(filePath) || {}
-      defineOptionsCache.set(filePath, JSON.stringify(defineOptions))
-      const meta: RouteMeta = defineOptions.meta || {}
-
-      if (meta.enabled === false)
-        continue
-
-      // 处理文件路径，按文件路径结构进行拆分， 如：src/pages/foo/bar/index.vue =>  ['foo', 'bar']
-      const pathSegments = filePath.replace(`${pagesFolder}`, '').replace('.vue', '').replace('index', '').split('/').filter(item => !!item && !/^\(.*\)$/.test(item)) // 过滤掉带括号的路径
-
-      const name: string = defineOptions.name || pathSegments.map(item => toPascalCase(item)).join('_') || 'Index'
-
-      // component作个标记，方便转化成 () => import('${pagePath}')
-      const component = `##/${filePath}@@${name}##`
-
-      const routePath = `/${pathSegments.map(item => item.replace(/\[(.*?)\]/g, (_, p1) => p1 === '...all' ? ':pathMatch(.*)*' : p1.split(',').map((i: any) => `:${i}`).join('/'))).join('/')}`
-      routes.push({
-        name,
-        path: routePath,
-        redirect: defineOptions.redirect,
-        parent: defineOptions.parent,
-        component: defineOptions.redirect ? undefined : component,
-        meta,
-      })
-    }
-
-    const { duplicateNames, duplicatePaths } = findDuplicateRoutes(routes)
-    if (duplicateNames.length)
-      console.warn(`Warning: Duplicate names found in routes: ${duplicateNames.join(', ')}`)
-    if (duplicatePaths.length)
-      console.warn(`Warning: Duplicate paths found in routes: ${duplicatePaths.join(', ')}`)
+    const rank = (routePath: string) => routePath.includes('(.*)*') ? 2 : routePath.includes(':') ? 1 : 0
+    const routes = Array.from(pageRouteCache.values())
+      .filter((route): route is InternalRoute => route !== null)
+      .sort((a, b) => rank(a.path) - rank(b.path) || a.path.localeCompare(b.path))
 
     // 按 layout 分组路由
-    return wrapRoutesWithLayout(nestRoutes(routes))
+    const wrappedRoutes = wrapRoutesWithLayout(routes)
+    assertUniqueRoutes(wrappedRoutes)
+    return wrappedRoutes
   }
 
   /**
-   * 将路由按 meta.layout 分组并嵌套到父级布局路由中
-   * meta.layout 为 false 的路由不进行嵌套
+   * 将路由按 meta.layout 分组并包裹到布局路由中
+   * meta.layout 为 false 的路由不使用布局
    * meta.layout 未设置时默认使用 'default'
    */
   function wrapRoutesWithLayout(routes: InternalRoute[]): InternalRoute[] {
@@ -125,12 +220,24 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
         noLayoutRoutes.push(route)
       }
       else {
-        const layoutName = layout || 'default'
+        const layoutName = layout === undefined ? defaultLayout : layout
+        if (layoutName === false) {
+          noLayoutRoutes.push(route)
+          continue
+        }
+        if (typeof layoutName !== 'string')
+          throw new TypeError(`Invalid meta.layout: expected a string or false`)
         const group = layoutGroups.get(layoutName)
         if (group) {
           group.push(route)
         }
         else {
+          const layoutPath = path.resolve(layoutsRoot, `${layoutName}.vue`)
+          const relativeLayoutPath = path.relative(layoutsRoot, layoutPath)
+          if (relativeLayoutPath === '..' || relativeLayoutPath.startsWith(`..${path.sep}`) || path.isAbsolute(relativeLayoutPath))
+            throw new Error(`Layout path must stay inside layoutsFolder: ${layoutName}`)
+          if (!existsSync(layoutPath))
+            throw new Error(`Layout file not found for layout "${layoutName}": ${layoutPath}`)
           layoutGroups.set(layoutName, [route])
         }
       }
@@ -140,154 +247,258 @@ function VitePluginGeneroutes(options: Partial<Options> = {}) {
     const layoutRoutes: InternalRoute[] = Array.from(layoutGroups, ([layoutName, children]) => ({
       name: `__LAYOUT_${layoutName.toUpperCase()}__`,
       path: `/__layout_${layoutName}__`,
-      component: `@@layout@@/${layoutsFolder}/${layoutName}.vue@@`,
+      component: `@@layout@@${encodeURIComponent(toViteImportPath(path.resolve(layoutsRoot, `${layoutName}.vue`)))}@@`,
       children,
     }))
 
     return layoutRoutes.concat(noLayoutRoutes)
   }
 
-  async function writerRoutesFile(isInit: boolean = false) {
+  function generateRoutesModule() {
     const routes = generateRoutes()
-
-    // Generate TypeScript type definitions
-    const typeDefinitions = isTypeScript
-      ? `
-import type { RouteMeta } from 'vite-plugin-generoutes'
-import type { RouteRecordRaw } from 'vue-router'
-
-export type GeneratedRoute = RouteRecordRaw & {
-  meta?: RouteMeta
-  children?: GeneratedRoute[]
-}
-`
-      : ''
-
-    const routesType = isTypeScript ? ': GeneratedRoute[]' : ''
-
-    let routesStr = `
-    // Generated by vite-plugin-generoutes, don't modify it directly.
-    ${typeDefinitions}
-    export const routes${routesType} = ${JSON.stringify(routes, null, 2)}
-    `
-
-    // 转化component为 () => import('${pagePath}')
-    routesStr = routesStr.replace(/"##(.*)##"/g, (_, p1) => `async () => ({...(await import('${p1.split('@@')[0]}')).default, name: '${p1.split('@@')[1]}'})`)
-    // 转化layout component为 () => import('${layoutPath}')
-    routesStr = routesStr.replace(/"@@layout@@(.*)@@"/g, (_, p1) => `() => import('${p1}')`)
-
-    // Use appropriate parser based on file type
-    const parser = isTypeScript ? 'typescript' : 'babel'
-    // 格式化
-    routesStr = await prettier.format(routesStr, { parser, semi: false, singleQuote: true })
-
-    const filePath = path.resolve(rootDir, routesPath)
-    await fs.ensureDir(path.dirname(filePath))
-    fs.writeFileSync(filePath, routesStr)
-    // eslint-disable-next-line no-console
-    console.log(`  ✅  ${isInit ? 'routes generated:' : 'routes updated:'} ${styleText('cyanBright', routesPath)}`)
+    return `const routes = [\n${routes.map(route => serializeRoute(route, 1)).join(',\n')}\n]\n\nexport default routes\n`
   }
 
-  const debounceWriter = debounce(500, writerRoutesFile)
+  async function refreshVirtualModule() {
+    try {
+      generatedCode = generateRoutesModule()
+      if (devServer) {
+        const module = devServer.moduleGraph.getModuleById(resolvedVirtualModuleId)
+        if (module) {
+          devServer.moduleGraph.invalidateModule(module)
+          await devServer.reloadModule(module)
+        }
+      }
+    }
+    catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      console.error(`[vue-auto-pages] ${err.message}`)
+      devServer?.ws.send({ type: 'error', err: { message: err.message, stack: err.stack || err.message } })
+    }
+  }
+
+  const debouncedRefresh = debounce(100, refreshVirtualModule)
 
   return {
-    name: 'vite-plugin-generoutes',
+    name: 'vue-auto-pages',
+    resolveId(id: string) {
+      return id === virtualModuleId ? resolvedVirtualModuleId : undefined
+    },
+    load(id: string) {
+      if (id === resolvedVirtualModuleId)
+        return generatedCode || generateRoutesModule()
+    },
     async configResolved(config: ResolvedConfig) {
       rootDir = config.root
-
-      // Auto-detect TypeScript project and set routesPath accordingly
-      const isTs = detectTypeScriptProject()
-      routesPath = options.routesPath || (isTs ? 'src/router/routes.ts' : 'src/router/routes.js')
-      isTypeScript = routesPath.endsWith('.ts')
-
-      await writerRoutesFile(true)
+      pagesRoot = path.resolve(rootDir, pagesFolder)
+      layoutsRoot = path.resolve(rootDir, layoutsFolder)
+      await initializePageRoutes()
+      generatedCode = generateRoutesModule()
     },
     configureServer(server: ViteDevServer) {
+      devServer = server
       const { watcher } = server
 
       watcher.on('all', async (event: string, filePath: string) => {
-        filePath = slash(filePath)
+        try {
+          filePath = slash(filePath)
+          if (!filePath.endsWith('.vue'))
+            return
+          if (event === 'change')
+            return
 
-        if (!filePath.endsWith('.vue') || ignoreFolders.some(folder => filePath.includes(`/${folder}/`)))
-          return
+          const absoluteFilePath = slash(path.resolve(filePath))
+          const relativePagePath = slash(path.relative(pagesRoot, absoluteFilePath))
+          const isPageFile = isInsideDirectory(absoluteFilePath, pagesRoot)
+          const ignored = isIgnoredPage(relativePagePath)
+          const isLayoutFile = isInsideDirectory(absoluteFilePath, layoutsRoot)
+          if ((!isPageFile || ignored) && !isLayoutFile)
+            return
 
-        if (filePath.includes(pagesFolder)) {
-          if (event === 'change') {
-            // 处理文件内容变化事件，与原 handleHotUpdate 逻辑相同
-            const relativePath = path.relative(rootDir, filePath)
-            const slashedPath = slash(relativePath)
-            const prevDefineOptions = defineOptionsCache.get(slashedPath)
-            const content = await fs.readFile(filePath, 'utf-8')
-            const defineOptions = JSON.stringify(parseDefineOptions(filePath, content))
-
-            // 仅当 defineOptions 变化时更新路由
-            if (prevDefineOptions !== defineOptions) {
-              debounceWriter()
+          if (isPageFile) {
+            if (event === 'unlink') {
+              pageRouteCache.delete(absoluteFilePath)
+              debouncedRefresh()
+            }
+            else if (event === 'add' && existsSync(absoluteFilePath)) {
+              const previousRoute = pageRouteCache.get(absoluteFilePath)
+              const nextRoute = await createPageRoute(absoluteFilePath)
+              pageRouteCache.set(absoluteFilePath, nextRoute)
+              if (JSON.stringify(previousRoute) !== JSON.stringify(nextRoute))
+                debouncedRefresh()
             }
           }
           else if (event === 'add' || event === 'unlink') {
-            // 只处理文件的添加和删除事件
-            debounceWriter()
+            debouncedRefresh()
           }
         }
+        catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error))
+          console.error(`[vue-auto-pages] ${err.message}`)
+          server.ws.send({ type: 'error', err: { message: err.message, stack: err.stack || err.message } })
+        }
       })
+    },
+    async handleHotUpdate(context) {
+      const absoluteFilePath = slash(path.resolve(context.file))
+      if (!absoluteFilePath.endsWith('.vue') || !isInsideDirectory(absoluteFilePath, pagesRoot))
+        return
+
+      const relativePagePath = slash(path.relative(pagesRoot, absoluteFilePath))
+      if (isIgnoredPage(relativePagePath))
+        return
+
+      const previousRoute = pageRouteCache.get(absoluteFilePath)
+      const nextRoute = await createPageRoute(absoluteFilePath, await context.read())
+      pageRouteCache.set(absoluteFilePath, nextRoute)
+      if (JSON.stringify(previousRoute) !== JSON.stringify(nextRoute))
+        await refreshVirtualModule()
     },
   } as Plugin
 }
 
-/**
- * 解析 defineOptions 中的已知字段（name, parent, redirect, meta）
- * 通过正则提取字符串值和对象值，避免未定义变量导致的解析错误
- */
-function parseDefineOptions(filePath: string, content?: string) {
-  content = content ?? fs.readFileSync(filePath, 'utf-8')
+function unwrapExpression(node: any): any {
+  if (['TSAsExpression', 'TSTypeAssertion', 'TSNonNullExpression', 'TSSatisfiesExpression', 'ParenthesizedExpression'].includes(node.type))
+    return unwrapExpression(node.expression)
+  return node
+}
+
+function staticPropertyKey(node: any) {
+  node = unwrapExpression(node)
+  if (node.type === 'Identifier' || node.type === 'StringLiteral' || node.type === 'NumericLiteral')
+    return String(node.name ?? node.value)
+  throw new Error(`Unsupported computed property key in defineOptions`)
+}
+
+function evaluateStatic(node: any): unknown {
+  node = unwrapExpression(node)
+  switch (node.type) {
+    case 'StringLiteral':
+    case 'NumericLiteral':
+    case 'BooleanLiteral':
+      return node.value
+    case 'NullLiteral':
+      return null
+    case 'TemplateLiteral':
+      if (node.expressions.length)
+        throw new Error('Dynamic template expressions are not supported in defineOptions')
+      return node.quasis.map((quasi: any) => quasi.value.cooked).join('')
+    case 'ArrayExpression':
+      return node.elements.map((element: any) => {
+        if (!element)
+          return null
+        return evaluateStatic(element)
+      })
+    case 'ObjectExpression': {
+      const value: Record<string, unknown> = {}
+      for (const property of node.properties) {
+        if (property.type === 'SpreadElement')
+          throw new Error('Object spread is not supported in defineOptions')
+        if (property.type !== 'ObjectProperty' || property.computed)
+          throw new Error('Only static object properties are supported in defineOptions')
+        value[staticPropertyKey(property.key)] = evaluateStatic(property.value)
+      }
+      return value
+    }
+    case 'UnaryExpression': {
+      const argument = evaluateStatic(node.argument)
+      if (node.operator === '!' && typeof argument === 'boolean')
+        return !argument
+      if ((node.operator === '+' || node.operator === '-') && typeof argument === 'number')
+        return node.operator === '+' ? argument : -argument
+      throw new Error(`Unsupported unary expression in defineOptions`)
+    }
+    default:
+      throw new Error(`Only static values are supported in defineOptions, received ${node.type}`)
+  }
+}
+
+function validateRouteMeta(filePath: string, meta: RouteMeta) {
+  if (Object.prototype.hasOwnProperty.call(meta, 'layout') && meta.layout !== false && typeof meta.layout !== 'string')
+    throw new TypeError(`Invalid meta.layout in ${filePath}: expected a string or false`)
+  if (Object.prototype.hasOwnProperty.call(meta, 'enabled') && typeof meta.enabled !== 'boolean')
+    throw new TypeError(`Invalid meta.enabled in ${filePath}: expected a boolean`)
+  if (Object.prototype.hasOwnProperty.call(meta, 'keepAlive') && typeof meta.keepAlive !== 'boolean')
+    throw new TypeError(`Invalid meta.keepAlive in ${filePath}: expected a boolean`)
+}
+
+/** Parse route fields from the Vue defineOptions macro without executing source code. */
+function parseDefineOptions(filePath: string, content?: string): ParsedDefineOptions {
   if (!content)
     return {}
 
-  const defineOptionsMatch = content.match(/defineOptions\s*\(\s*(\{[\s\S]*?\})\s*\)/)
-  if (!defineOptionsMatch)
+  let ast
+  try {
+    ast = parseScript(content, {
+      sourceType: 'module',
+      plugins: ['typescript'],
+    })
+  }
+  catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse script in ${filePath}: ${message}`, { cause: error })
+  }
+  const calls = ast.program.body
+    .filter(statement => statement.type === 'ExpressionStatement')
+    .map(statement => (statement as any).expression)
+    .filter(expression => expression?.type === 'CallExpression' && expression.callee.type === 'Identifier' && expression.callee.name === 'defineOptions')
+
+  if (!calls.length)
     return {}
+  if (calls.length > 1)
+    throw new Error(`Multiple defineOptions calls found in ${filePath}`)
 
-  const optionsStr = defineOptionsMatch[1]!
-  const result: Record<string, any> = {}
+  const argument = unwrapExpression(calls[0].arguments[0])
+  if (!argument || argument.type !== 'ObjectExpression')
+    throw new Error(`defineOptions in ${filePath} must receive a static object`)
 
-  // 提取字符串类型字段: name, parent, redirect
-  const stringFields = ['name', 'parent', 'redirect']
-  for (const field of stringFields) {
-    const match = optionsStr.match(new RegExp(`${field}\\s*:\\s*(['"\`])([^'"\`]*?)\\1`))
-    if (match)
-      result[field] = match[2]
-  }
+  const result: ParsedDefineOptions = {}
+  for (const property of argument.properties) {
+    if (property.type === 'SpreadElement')
+      throw new Error(`Object spread is not supported in defineOptions: ${filePath}`)
+    if (property.type !== 'ObjectProperty')
+      continue
+    if (property.computed)
+      throw new Error(`Computed properties are not supported in defineOptions: ${filePath}`)
 
-  // 提取 meta 对象（支持嵌套花括号）
-  const metaMatch = optionsStr.match(/meta\s*:\s*(\{)/)
-  if (metaMatch) {
-    const startIndex = optionsStr.indexOf(metaMatch[0]) + metaMatch[0].length - 1
-    let depth = 0
-    let endIndex = startIndex
-
-    for (let i = startIndex; i < optionsStr.length; i++) {
-      if (optionsStr[i] === '{')
-        depth++
-      else if (optionsStr[i] === '}')
-        depth--
-      if (depth === 0) {
-        endIndex = i + 1
-        break
-      }
-    }
-
-    const metaStr = optionsStr.slice(startIndex, endIndex)
+    let key: string
     try {
-      result.meta = new Function(`return ${metaStr}`)()
+      key = staticPropertyKey(property.key)
     }
-    catch {
-      // meta 解析失败时忽略
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Invalid defineOptions property in ${filePath}: ${message}`, { cause: error })
     }
+    if (!['name', 'redirect', 'meta'].includes(key))
+      continue
+    let value: unknown
+    try {
+      value = evaluateStatic(property.value)
+    }
+    catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Invalid ${key} in ${filePath}: ${message}`, { cause: error })
+    }
+    if (key === 'meta') {
+      if (!value || typeof value !== 'object' || Array.isArray(value))
+        throw new Error(`meta in ${filePath} must be a static object`)
+    }
+    else if (typeof value !== 'string') {
+      throw new TypeError(`${key} in ${filePath} must be a static string`)
+    }
+    if (key === 'meta')
+      result.meta = value as RouteMeta
+    else if (key === 'name')
+      result.name = value as string
+    else
+      result.redirect = value as string
   }
+
+  if (result.meta)
+    validateRouteMeta(filePath, result.meta)
 
   return result
 }
 
-export default VitePluginGeneroutes
-export { VitePluginGeneroutes }
+export default VueAutoPages
+export { VueAutoPages }

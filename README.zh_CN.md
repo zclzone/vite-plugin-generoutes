@@ -1,212 +1,272 @@
-# vite-plugin-generoutes
+# vue-auto-pages
 
-一个基于文件系统自动生成Vue路由配置的Vite插件。
+面向 Vue 与 Vite 的约定式文件路由插件。它将 Vue 页面转换为带类型的 Vue Router 路由，支持布局，并通过 virtual module 提供路由和热更新。
 
-### 📋 前置要求
+[English](./README.md)
 
-- **Node.js**: `20.12.0` 或更高版本
+## 环境要求
 
-### ✨ 特性
+- Node.js `^20.19.0` 或 `>=22.12.0`
+- Vite `>=6.4.1`
+- Vue Router `>=4.0.0`
 
-- 📁 基于文件系统的路由生成
-- 🔄 支持动态路由和嵌套路由
-- 🛠️ 热重载 - 文件变化时自动更新路由
-- 🎨 可自定义路由配置
-- 🧩 支持通过`defineOptions`设置路由元数据
-- 🚦 支持路由重定向
-- 🖼️ 支持按布局分组路由
+## 功能
 
-### 📦 安装
+- 基于文件系统生成路由
+- 支持静态、动态、可选、多参数和通配符路由
+- 根据文件路径生成完整路径的扁平路由
+- 支持默认布局、命名布局和无布局页面
+- 静态解析 `defineOptions`，不会执行应用代码
+- 提供带类型的路由元数据和自定义业务字段
+- 支持路由重定向和禁用页面
+- 通过 virtual module 输出，不生成路由源码文件
+- 使用内存页面索引进行增量热更新
+- 构建阶段校验歧义和非法路由
+
+## 安装
 
 ```bash
-# npm
-npm install vite-plugin-generoutes -D
-
-# yarn
-yarn add vite-plugin-generoutes -D
-
-# pnpm
-pnpm add vite-plugin-generoutes -D
+pnpm add -D vue-auto-pages
 ```
 
-### 🔨 使用方法
+## 配置
 
-在`vite.config.js`中配置插件：
+在 `vite.config.ts` 中注册插件：
 
-```javascript
+```ts
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
-import generoutes from 'vite-plugin-generoutes'
+import VueAutoPages from 'vue-auto-pages'
 
 export default defineConfig({
   plugins: [
     vue(),
-    generoutes({
-      // 配置选项
-    })
-  ]
-})
-```
-
-### ⚙️ 配置选项
-
-| 选项            | 类型       | 默认值           | 描述                                                                                      |
-| --------------- | ---------- | ---------------- | ----------------------------------------------------------------------------------------- |
-| `pagesFolder`   | `string`   | `'src/pages'`    | 页面文件夹路径                                                                            |
-| `layoutsFolder` | `string`   | `'src/layouts'`  | 布局组件文件夹路径                                                                        |
-| `ignoreFolders` | `string[]` | `['components']` | 生成路由时忽略的文件夹                                                                    |
-| `routesPath`    | `string`   | 自动检测         | 生成的路由文件路径，根据 `tsconfig.json` 是否存在自动检测（存在则为 `.ts`，否则为 `.js`） |
-
-### 📘 TypeScript 支持
-
-本插件对 TypeScript 提供一流支持：
-
-- **自动检测**：通过检查 `tsconfig.json` 自动检测 TypeScript 项目
-- **类型定义**：为 TypeScript 项目生成路由时，插件会自动包含 `RouteMeta` 和 `GeneratedRoute` 的类型定义
-- **路由类型**：生成的路由使用 `vue-router` 的 `RouteRecordRaw` 进行正确的类型标注
-
-### 📝 路由规则
-
-#### 基本路由
-
-- `src/pages/index.vue` -> `/`
-- `src/pages/about.vue` -> `/about`
-- `src/pages/users/index.vue` -> `/users`
-- `src/pages/users/profile.vue` -> `/users/profile`
-
-#### 动态路由
-
-- `src/pages/users/[id].vue` -> `/users/:id`
-- `src/pages/users/[...all].vue` -> `/users/:pathMatch(.*)*`
-- `src/pages/[org]/[repo].vue` -> `/:org/:repo`
-
-#### 虚拟目录
-
-- 文件名带括号的路径会被当做虚拟目录，生成的路由path会忽略带括号的这一层路径
-- 例如：`src/pages/(auth)/login.vue` -> `/login`
-
-### 🧠 自定义路由
-
-您可以在Vue文件中使用`defineOptions`来自定义路由配置：
-
-```vue
-<script setup>
-defineOptions({
-  name: 'CustomRouteName',
-  meta: {
-    title: '页面标题',
-    icon: 'home',
-    requiresAuth: true,
-    enabled: true // 设置为false则不会生成此路由
-  },
-  redirect: '/other-route' // 设置重定向
-})
-</script>
-```
-
-### 🌲 嵌套路由
-
-使用 `parent` 属性即可建立嵌套路由关系（无需额外开关，自动生效）：
-
-```vue
-<script setup>
-defineOptions({
-  name: 'ChildRoute',
-  parent: 'ParentRouteName',
-  meta: {
-    title: '子路由'
-  }
-})
-</script>
-```
-
-### �️ 布局路由
-
-路由会根据 `meta.layout` 属性自动分组，并包裹在对应的布局父级路由中：
-
-- 设置 `meta.layout: false` 的路由**不会**被布局包裹
-- 未设置 `meta.layout` 的路由默认使用 `'default'` 布局
-- 设置 `meta.layout: 'xxx'` 的路由会使用 `layoutsFolder` 中对应的布局组件
-
-```vue
-<!-- src/pages/login.vue - 不使用布局包裹 -->
-<script setup>
-defineOptions({
-  name: 'Login',
-  meta: {
-    layout: false
-  }
-})
-</script>
-```
-
-```vue
-<!-- src/pages/home.vue - 使用 'admin' 布局 -->
-<script setup>
-defineOptions({
-  name: 'Home',
-  meta: {
-    layout: 'admin'
-  }
-})
-</script>
-```
-
-**生成的路由结构示例：**
-
-```javascript
-[
-  // layout: false 的路由不会被包裹
-  {
-    name: 'Login',
-    path: '/login',
-    component: () => import('/src/pages/login.vue'),
-    meta: { layout: false }
-  },
-  // 路由按布局分组
-  {
-    name: 'LAYOUT_DEFAULT',
-    path: '/__layout_default__',
-    component: () => import('/src/layouts/default.vue'),
-    children: [
-      { name: 'Index', path: '/' }
-    ]
-  },
-  {
-    name: 'LAYOUT_ADMIN',
-    path: '/__layout_admin__',
-    component: () => import('/src/layouts/admin.vue'),
-    children: [
-      { name: 'Home', path: '/home' }
-    ]
-  }
-]
-```
-
-### �🚀 完整示例
-
-```javascript
-import vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'vite'
-import generoutes from 'vite-plugin-generoutes'
-
-export default defineConfig({
-  plugins: [
-    vue(),
-    generoutes({
-      pagesFolder: 'src/views',
-      ignoreFolders: ['components', 'assets'],
-      routesPath: 'src/router/routes.js'
-    })
+    VueAutoPages(),
   ],
 })
 ```
 
-### 💡 常见问题
+从 `virtual:vue-auto-pages` 导入生成的路由：
 
-1、路由的path报红：*找不到模块“/src/pages/xxx.vue”或其相应的类型声明。*，按F12无法跳转至对应的文件
+```ts
+import routes from 'virtual:vue-auto-pages'
+import { createRouter, createWebHistory } from 'vue-router'
 
-解决方法：在 jsconfig.json 或者 tsconfig.json 的 compilerOptions中添加如下配置
+export const router = createRouter({
+  history: createWebHistory(),
+  routes,
+})
+```
+
+## TypeScript
+
+在 `tsconfig.json` 中加入客户端类型：
+
+```json
+{
+  "compilerOptions": {
+    "types": [
+      "vite/client",
+      "vue-auto-pages/client"
+    ]
+  }
+}
+```
+
+`virtual:vue-auto-pages` 的默认导出类型为 `RouteRecordRaw[]`。包还会导出 `RouteMeta`、`Options`、`VueAutoPages` 和 `virtualModuleId`。
+
+## 配置项
+
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `pagesFolder` | `string` | `'src/pages'` | 相对于 Vite 根目录的页面目录 |
+| `layoutsFolder` | `string` | `'src/layouts'` | 相对于 Vite 根目录的布局目录 |
+| `ignoreFolders` | `string[]` | `['components']` | 不参与路由生成的页面子目录 |
+| `defaultLayout` | `string \| false` | `'default'` | 页面未设置 `meta.layout` 时使用的布局；`false` 表示默认无布局 |
+
+完整配置示例：
+
+```ts
+VueAutoPages({
+  pagesFolder: 'src/views',
+  layoutsFolder: 'src/shells',
+  ignoreFolders: ['components', 'partials'],
+  defaultLayout: false,
+})
+```
+
+## 运行机制
+
+插件在 Vite 配置阶段执行以下流程：
+
+1. 根据 Vite 根目录解析页面和布局目录。
+2. 异步扫描 Vue 页面并建立内存页面索引。
+3. 使用 Vue SFC Parser 对每个页面解析一次。
+4. 使用 Babel AST 静态读取 `<script setup>` 中的 `defineOptions`，不会执行源码。
+5. 根据文件路径生成 route name、path、component、redirect 和 meta。
+6. 对扁平路由排序，使静态路由优先于动态路由和通配符路由。
+7. 校验路由唯一性、动态语法和布局。
+8. 使用选择的布局包裹路由。
+9. 将最终路由序列化为 `virtual:vue-auto-pages` 模块。
+
+插件不会向应用源码目录写入 `routes.ts` 或 `routes.js`。
+
+## 文件路由约定
+
+### 基础路由
+
+```text
+src/pages/index.vue          -> /
+src/pages/about.vue          -> /about
+src/pages/users/index.vue    -> /users
+src/pages/users/profile.vue  -> /users/profile
+```
+
+`index.vue` 表示所在目录，不会在 URL 中增加 `index`。
+
+### 虚拟目录
+
+括号目录只用于组织文件，不会进入 URL：
+
+```text
+src/pages/(auth)/login.vue -> /login
+```
+
+### 动态路由
+
+```text
+src/pages/users/[id].vue          -> /users/:id
+src/pages/users/[id,name].vue     -> /users/:id/:name
+src/pages/users/[[id]].vue        -> /users/:id?
+src/pages/files/[...segments].vue -> /files/:segments(.*)*
+src/pages/[...all].vue            -> /:pathMatch(.*)*
+```
+
+参数名必须使用 JavaScript 风格的合法标识符，不支持的括号语法会使构建失败。
+
+### 默认路由名称
+
+名称由路径片段自动生成：
+
+```text
+src/pages/user/profile.vue -> User_Profile
+```
+
+需要稳定的自定义名称时可以使用 `defineOptions({ name: '...' })`。
+
+## 页面路由配置
+
+插件只读取静态 `defineOptions`：
+
+```vue
+<script setup lang="ts">
+defineOptions({
+  name: 'Dashboard',
+  redirect: '/home',
+  meta: {
+    title: '管理面板',
+    layout: 'admin',
+    keepAlive: true,
+    enabled: true,
+    permissions: ['dashboard:read'],
+  },
+})
+</script>
+```
+
+支持的顶层字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `name` | `string` | 覆盖自动生成的路由名称 |
+| `redirect` | `string` | 生成不含页面 component 的重定向路由 |
+| `meta` | 静态对象 | Vue Router 路由元数据 |
+
+支持静态字符串、数字、布尔值、null、数组、对象、无插值模板字符串、简单一元表达式和 TypeScript 断言包装。函数调用、展开语法、计算属性和其他动态表达式会使构建失败。
+
+## RouteMeta
+
+```ts
+interface RouteMeta {
+  layout?: string | false
+  keepAlive?: boolean
+  enabled?: boolean
+  [key: string]: unknown
+}
+```
+
+插件会在构建阶段校验三个内置字段。业务字段保持为 `unknown`，应用使用前应进行类型收窄，也可以在项目中扩展 Vue Router 类型。
+
+`enabled: false` 会将页面从生成路由树中排除。
+
+## 布局
+
+页面未设置 `meta.layout` 时使用 `defaultLayout`。默认值为 `default`，对应 `src/layouts/default.vue`。
+
+使用命名布局：
+
+```ts
+defineOptions({
+  meta: {
+    layout: 'admin',
+  },
+})
+```
+
+此时必须存在 `src/layouts/admin.vue`。
+
+单个页面禁用布局：
+
+```ts
+defineOptions({
+  meta: {
+    layout: false,
+  },
+})
+```
+
+整个项目默认不使用布局：
+
+```ts
+VueAutoPages({
+  defaultLayout: false,
+})
+```
+
+全局默认无布局时，页面仍可以显式选择命名布局。布局文件必须存在，并且路径必须位于 `layoutsFolder` 内。
+
+## 热更新与性能
+
+开发服务器会在内存中维护页面路由信息：
+
+- 启动时使用异步 glob 和并行异步读取。
+- 每次更新只解析一次对应 SFC。
+- 页面变更时只重新解析当前页面，并复用 Vite 提供的内存源码。
+- 普通模板和样式修改继续使用 Vue 原生 HMR。
+- `defineOptions` 中与路由有关的内容变化时刷新 virtual module。
+- 页面新增和删除会增量更新内存索引。
+- 布局组件修改使用 Vue HMR，布局新增和删除会刷新路由生成。
+- 插件只重新加载 virtual module，不写入路由文件，也不会无条件触发整页刷新。
+
+## 构建失败规则
+
+以下情况会抛出明确错误并中止构建：
+
+- 路由名称重复
+- 路由路径重复
+- 动态路由语法非法
+- `defineOptions` 静态值非法
+- `layout`、`keepAlive` 或 `enabled` 类型错误
+- 布局文件不存在
+- 布局路径超出 `layoutsFolder`
+- Vue SFC 或脚本解析失败
+
+这样可以避免生成不完整或存在歧义的路由树。
+
+## 常见问题
+
+如果编辑器提示无法解析 `/src/pages/example.vue`，可以增加绝对源码路径映射：
+
 ```json
 {
   "compilerOptions": {
@@ -218,4 +278,19 @@ export default defineConfig({
 }
 ```
 
-[English Documentation](./README.md)
+## 仓库验证
+
+```bash
+pnpm lint
+pnpm build
+pnpm verify
+pnpm --filter vue-auto-pages-demo build
+pnpm --filter vue-auto-pages-demo-ts build
+npm pack --dry-run
+```
+
+发布包包含 `dist/index.js`、`dist/index.d.ts` 和 `client.d.ts`。
+
+## License
+
+[MIT](./LICENSE)

@@ -1,43 +1,40 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
 defineOptions({
   name: 'HomePage',
   meta: {
     title: 'Home页面',
-    requiresAuth: false,
+    requireAuth: false,
     layout: 'home',
   },
 })
+
+const route = useRoute()
+const redirected = computed(() => route.query.case === 'redirect')
 </script>
 
 <template>
-  <div class="page home-page">
-    <h2>🏡 Home页面</h2>
-    <p>这是由文件 <code>src/pages/home.vue</code> 生成的路由页面</p>
-    <p>路由路径: <code>/home</code></p>
-    <p>
-      <strong>requiresAuth:</strong> false
+  <article class="demo-page">
+    <p class="page-kicker">
+      Explicit layout / business meta
     </p>
-  </div>
+    <h2>页面主动选择 home 布局。</h2>
+    <p>全局默认不使用布局，本页通过静态 meta 显式加入 <code>home.vue</code> 布局分组。</p>
+    <div v-if="redirected" class="callout">
+      redirect.vue 没有加载组件；路由已按 <code>redirect: '/home?case=redirect'</code> 跳转到这里。
+    </div>
+    <div class="fact-grid">
+      <div class="fact">
+        <span>路径</span><code>/home</code>
+      </div>
+      <div class="fact">
+        <span>layout</span><code>home</code>
+      </div>
+      <div class="fact">
+        <span>业务字段</span><code>requireAuth: false</code>
+      </div>
+    </div>
+  </article>
 </template>
-
-<style scoped>
-.page {
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.home-page {
-  background-color: #efffef;
-}
-
-h2 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-</style>

@@ -1,7 +1,7 @@
+import routes from 'virtual:vue-auto-pages'
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
-import { routes } from './router/routes'
 
 const router = createRouter({
   history: createWebHashHistory(),

@@ -31,3 +31,12 @@ jobs:
 
       - name: Lint
         run: nr lint
+
+      - name: Build package
+        run: nr build
+
+      - name: Build examples
+        run: pnpm --filter vue-auto-pages-demo build && pnpm --filter vue-auto-pages-demo-ts build
+
+      - name: Verify virtual module
+        run: nr verify

@@ -3,7 +3,8 @@ defineOptions({
   name: 'HomePage',
   meta: {
     title: 'Home页面',
-    requiresAuth: false,
+    requireAuth: false,
+    layout: 'default',
   },
 })
 </script>
@@ -13,6 +14,7 @@ defineOptions({
     <h2>Home页面</h2>
     <p>这是由文件 <code>src/pages/home.vue</code> 生成的路由页面</p>
     <p>路由路径: <code>/home</code></p>
+    <p>该页面通过 <code>meta.layout: 'default'</code> 主动启用默认布局。</p>
   </div>
 </template>
 

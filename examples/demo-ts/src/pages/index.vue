@@ -4,68 +4,40 @@ defineOptions({
   meta: {
     title: '首页',
     icon: 'home',
-    layout: 'home',
+    enabled: true,
+    keepAlive: true,
+    features: ['virtual-module', 'typed-meta', 'hmr'],
   },
 })
 </script>
 
 <template>
-  <div class="page index-page">
-    <h2>🏠 首页</h2>
-    <p>这是由文件 <code>src/pages/index.vue</code> 生成的路由页面</p>
-    <p>路由路径: <code>/</code></p>
-    <div class="features">
-      <h3>TypeScript 支持特性：</h3>
-      <ul>
-        <li>✅ 路由文件 <code>routes.ts</code> 带有完整类型定义</li>
-        <li>✅ 自动导入 <code>RouteRecordRaw</code> 类型</li>
-        <li>✅ <code>RouteMeta</code> 接口可扩展</li>
-        <li>✅ IDE 智能提示支持</li>
-      </ul>
+  <article class="demo-page">
+    <p class="page-kicker">
+      Index route / typed meta
+    </p>
+    <h2>路由不是文件，是模块。</h2>
+    <p>插件扫描页面后将类型化路由发布为 <code>virtual:vue-auto-pages</code>，源码目录中不会产生 routes.ts。</p>
+    <div class="fact-grid">
+      <div class="fact">
+        <span>文件</span>
+        <code>pages/index.vue</code>
+      </div>
+      <div class="fact">
+        <span>路径</span>
+        <code>/</code>
+      </div>
+      <div class="fact">
+        <span>默认布局</span>
+        <code>false</code>
+      </div>
+      <div class="fact">
+        <span>内置 meta</span>
+        <code>enabled + keepAlive</code>
+      </div>
     </div>
-  </div>
+    <div class="callout">
+      右侧检查器直接消费 virtual module，并通过 RouteMeta 类型读取布局字段。
+    </div>
+  </article>
 </template>
-
-<style scoped>
-.page {
-  padding: 20px;
-  border-radius: 8px;
-}
-
-.index-page {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-}
-
-h2 {
-  margin-bottom: 15px;
-  color: #333;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'Fira Code', monospace;
-}
-
-.features {
-  margin-top: 20px;
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-}
-
-.features h3 {
-  margin-bottom: 10px;
-  color: #667eea;
-}
-
-.features ul {
-  list-style: none;
-  padding: 0;
-}
-
-.features li {
-  padding: 5px 0;
-}
-</style>

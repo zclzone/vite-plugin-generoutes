@@ -1,7 +1,6 @@
 <script setup lang="ts">
 defineOptions({
   name: 'UserProfile',
-  parent: 'UserIndex',
   meta: {
     title: '用户资料',
     icon: 'profile',
@@ -10,31 +9,19 @@ defineOptions({
 </script>
 
 <template>
-  <div class="nested-page">
-    <h3>📝 用户资料 (嵌套路由)</h3>
-    <p>这是由文件 <code>src/pages/user/profile.vue</code> 生成的嵌套路由页面</p>
-    <p>路由路径: <code>/user/profile</code></p>
-    <p>父路由: <code>UserIndex</code></p>
-  </div>
+  <section class="demo-page">
+    <p class="page-kicker">
+      Flat directory route
+    </p>
+    <h2>目录页面</h2>
+    <p>目录只参与完整 URL 生成；可以独立选择 layout。</p>
+    <div class="fact-grid">
+      <div class="fact">
+        <span>路径</span><code>/user/profile</code>
+      </div>
+      <div class="fact">
+        <span>路由结构</span><code>扁平路由</code>
+      </div>
+    </div>
+  </section>
 </template>
-
-<style scoped>
-.nested-page {
-  margin-top: 20px;
-  padding: 15px;
-  background: white;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
-}
-
-h3 {
-  margin-bottom: 10px;
-  color: #667eea;
-}
-
-code {
-  background-color: rgba(0, 0, 0, 0.1);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-</style>

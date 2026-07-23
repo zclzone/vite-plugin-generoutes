@@ -1,5 +1,5 @@
 {
-  "name": "vite-plugin-generoutes-demo-ts",
+  "name": "vue-auto-pages-demo-ts",
   "type": "module",
   "version": "0.0.0",
   "private": true,
@@ -13,10 +13,10 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.2.1",
+    "@vitejs/plugin-vue": "^6.0.8",
     "typescript": "~5.6.2",
     "vite": "^7.3.0",
-    "vite-plugin-generoutes": "workspace:^",
+    "vue-auto-pages": "workspace:^",
     "vue-tsc": "^2.2.0"
   }
 }

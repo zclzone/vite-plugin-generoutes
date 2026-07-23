@@ -1,7 +1,6 @@
 <script setup>
 defineOptions({
   name: 'UserProfile',
-  parent: 'UserIndex',
   meta: {
     title: '用户资料',
     icon: 'profile',
@@ -15,10 +14,8 @@ defineOptions({
     <p>这是由文件 <code>src/pages/user/profile.vue</code> 生成的路由页面</p>
     <p>路由路径: <code>/user/profile</code></p>
     <div class="info-box">
-      <h3>嵌套路由说明</h3>
-      <p>这个页面通过 <code>parent: 'UserIndex'</code> 配置，指定了父路由为 UserIndex。</p>
-      <p>在启用 <code>nested: true</code> 配置选项后，会自动生成嵌套的路由结构。</p>
-      <p>注意：当前demo已启用 <code>nested: true</code> 配置。</p>
+      <h3>目录路由说明</h3>
+      <p>目录只参与 URL 生成，该页面是 path 为 <code>/user/profile</code> 的独立路由。</p>
     </div>
   </div>
 </template>
